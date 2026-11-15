@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Placeholder product photo">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fdf0ee"/><stop offset="1" stop-color="#f4c9c2"/></linearGradient></defs>
+<rect width="800" height="1000" fill="url(#g)"/>
+<ellipse cx="400" cy="835" rx="210" ry="26" fill="#2b1d22" opacity=".08"/>
+<path d="M352 300 q48 -110 96 -20 v170 h-96z" fill="#b83e68"/><rect x="340" y="440" width="120" height="110" rx="8" fill="#e9d2a8"/><rect x="318" y="540" width="164" height="280" rx="18" fill="#2b1d22"/><rect x="318" y="540" width="50" height="280" rx="18" fill="#fff" opacity=".12"/><rect x="318" y="560" width="164" height="14" fill="#c9a66b"/>
+</svg>

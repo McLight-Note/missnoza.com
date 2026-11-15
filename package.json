@@ -1,0 +1,45 @@
+{
+  "name": "missnoza",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "seed": "node scripts/seed.mjs",
+    "admin:grant": "node scripts/admin.mjs grant",
+    "admin:revoke": "node scripts/admin.mjs revoke",
+    "admin:list": "node scripts/admin.mjs list",
+    "emulators": "npx -y firebase-tools emulators:start --project demo-missnoza --import=.emulator-data --export-on-exit=.emulator-data",
+    "test:rules": "npx -y firebase-tools emulators:exec --only firestore --project demo-missnoza \"node tests/rules.test.mjs\"",
+    "firebase:deploy": "npx -y firebase-tools deploy --only firestore:rules,firestore:indexes"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "firebase": "^13.3.0",
+    "firebase-admin": "^14.5.1",
+    "libphonenumber-js": "^1.13.16",
+    "lucide-react": "^1.73.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
