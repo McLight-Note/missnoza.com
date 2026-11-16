@@ -21,6 +21,16 @@ if (!emulator && !(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRI
   process.exit(1);
 }
 
+// Same forgiving parsing as src/server/firebase-admin.ts.
+function normalizePrivateKey(raw) {
+  let key = raw.trim().replace(/,$/, "").trim();
+  const quote = key[0];
+  if ((quote === '"' || quote === "'") && key.endsWith(quote)) key = key.slice(1, -1);
+  key = key.replace(/\\n/g, "\n").trim();
+  if (!key.includes("-----BEGIN")) key = `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+  return `${key}\n`;
+}
+
 const app = initializeApp(
   emulator
     ? { projectId }
@@ -28,7 +38,7 @@ const app = initializeApp(
         credential: cert({
           projectId,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+          privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
         }),
       },
 );

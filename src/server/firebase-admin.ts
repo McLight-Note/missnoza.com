@@ -24,6 +24,20 @@ export function isAdminConfigured() {
   return Boolean(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
 }
 
+/**
+ * Accept the key however it was pasted: with or without surrounding quotes,
+ * with literal "\n" sequences (how Vercel stores it) or real line breaks,
+ * and with or without the BEGIN/END lines.
+ */
+export function normalizePrivateKey(raw: string) {
+  let key = raw.trim().replace(/,$/, "").trim();
+  const quote = key[0];
+  if ((quote === '"' || quote === "'") && key.endsWith(quote)) key = key.slice(1, -1);
+  key = key.replace(/\\n/g, "\n").trim();
+  if (!key.includes("-----BEGIN")) key = `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+  return `${key}\n`;
+}
+
 const globalCache = globalThis as unknown as { __mnDb?: Firestore };
 
 function app(): App {
@@ -48,8 +62,7 @@ function app(): App {
     credential: cert({
       projectId: projectId(),
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // Vercel stores multi-line values with literal "\n" sequences.
-      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+      privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY!),
     }),
   });
 }
