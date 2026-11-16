@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, Send } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, PageLoading, StatusBadge } from "@/components/ui/misc";
 import { formatDateTime, formatMoney } from "@/lib/utils";
 import { orderIdSchema } from "@/lib/validation";
 import { isAdminConfigured } from "@/server/firebase-admin";
+import { getPublicSettings } from "@/server/catalog";
 import { getOrderConfirmation } from "@/server/orders";
 
 export const metadata: Metadata = { title: "Buyurtma qabul qilindi", robots: { index: false, follow: false } };
@@ -27,8 +28,10 @@ async function Confirmation({ params }: Pick<PageProps<"/order/[id]">, "params">
   const { id } = await params;
   const parsed = orderIdSchema.safeParse(id);
   if (!parsed.success || !isAdminConfigured()) notFound();
-  const order = await getOrderConfirmation(parsed.data);
+  const [order, settings] = await Promise.all([getOrderConfirmation(parsed.data), getPublicSettings()]);
   if (!order) notFound();
+  // Only link to a Telegram address saved in Admin → Sozlamalar.
+  const telegram = /^https:\/\/(t\.me|telegram\.me)\//i.test(settings.contact.telegram) ? settings.contact.telegram : null;
   const cancelled = order.status === "cancelled";
 
   return (
@@ -83,6 +86,24 @@ async function Confirmation({ params }: Pick<PageProps<"/order/[id]">, "params">
           </div>
         </dl>
       </Card>
+
+      {telegram && !cancelled && (
+        <Card className="mt-5 p-5 text-center sm:p-6">
+          <p className="font-semibold">Buyurtmani Telegramda tasdiqlang</p>
+          <p className="mt-1 text-sm text-muted">
+            Bizga Telegramda <strong className="font-mono text-ink select-all">{order.reference}</strong> buyurtma raqamini yozing — tezroq bogʻlanamiz.
+          </p>
+          <a
+            href={telegram}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#229ED9] px-7 text-base font-medium text-white hover:bg-[#1c8cc2] sm:w-auto"
+          >
+            <Send className="size-5" aria-hidden="true" />
+            Telegramda yozish
+          </a>
+        </Card>
+      )}
 
       <p className="mt-5 text-center text-sm text-muted">
         Biz bilan bogʻlanish kerak boʻlsa, buyurtma raqamini saqlab qoʻying. Saytda hech qanday toʻlov olinmadi.
