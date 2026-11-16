@@ -134,7 +134,7 @@ Then publish the security rules and database indexes from this folder:
 
 ```bash
 npx firebase-tools login
-npx firebase-tools use --add      # pick your project
+npx firebase-tools use --add      # pick your project 
 npm run firebase:deploy           # firestore.rules and firestore.indexes.json
 ```
 
