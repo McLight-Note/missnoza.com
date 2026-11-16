@@ -4,8 +4,8 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth, inMemoryPersistence, setPersistence, type Auth } from "firebase/auth";
 
 /**
- * Firebase in the browser is used for one thing only: completing the
- * email-link sign-in. These NEXT_PUBLIC_ values are the public web-app
+ * Firebase in the browser is used for one thing only: proving who the
+ * visitor is (email link or Google) so the server can open a session. These NEXT_PUBLIC_ values are the public web-app
  * config (safe to expose); all privileged access happens on the server.
  */
 const config = {

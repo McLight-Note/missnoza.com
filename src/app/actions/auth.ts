@@ -77,7 +77,7 @@ export async function requestSignInLink(
 
 /**
  * Step 2 of sign-in: exchange a fresh Firebase ID token (obtained by opening
- * the emailed link) for an httpOnly session cookie.
+ * the emailed link, or by signing in with Google) for an httpOnly session cookie.
  *
  * Admin rights come only from a Firebase custom claim. The claim is granted
  * here, on the server, when a *verified* email matches the ADMIN_EMAILS
@@ -99,7 +99,7 @@ export async function createSession(
     const decoded = await auth.verifyIdToken(idToken, true);
     // Only accept tokens from a sign-in that just happened.
     if (Date.now() / 1000 - decoded.auth_time > 5 * 60) {
-      return { ok: false, error: "Bu kirish havolasining muddati tugagan. Yangisini soʻrang." };
+      return { ok: false, error: "Kirish muddati tugagan. Qaytadan kiring." };
     }
 
     const email = decoded.email?.toLowerCase() ?? null;
@@ -132,7 +132,7 @@ export async function createSession(
     return { ok: true, data: { refreshToken: false, isAdmin: decoded.admin === true && verified } };
   } catch (error) {
     console.error("[auth] createSession failed", error);
-    return { ok: false, error: "Tizimga kirib boʻlmadi. Yangi havola soʻrab, qayta urinib koʻring." };
+    return { ok: false, error: "Tizimga kirib boʻlmadi. Qayta urinib koʻring." };
   }
 }
 

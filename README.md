@@ -124,6 +124,7 @@ In the [Firebase console](https://console.firebase.google.com):
 
 1. **Create a project** (Google Analytics is not needed). Stay on the free *Spark* plan.
 2. **Authentication → Get started → Sign-in method → Email/Password:** enable it **and** enable **Email link (passwordless sign-in)**.
+   Also enable **Google** in the same list (pick a support email when asked). Customers then see a *Google orqali kirish* button on the sign-in page. Google sign-ins are free and do **not** count toward the daily sign-in email limit.
 3. **Authentication → Settings → Authorized domains:** add your real domain (for example `missnoza.com` and `www.missnoza.com`). `localhost` is already there for development.
 4. **Firestore Database → Create database:** choose *production mode* and a region close to your customers. The region cannot be changed later.
 5. **Project settings → General → Your apps → Web app (`</>`):** register an app. Copy `apiKey`, `authDomain`, `projectId` and `appId` — these are the `NEXT_PUBLIC_FIREBASE_*` values.
