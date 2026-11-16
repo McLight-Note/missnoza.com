@@ -98,6 +98,7 @@ Useful commands:
 | `npm run build` / `npm start` | Production build / run it |
 | `npm run lint` · `npm run typecheck` | Code checks |
 | `npm run seed` | Add sample categories and products to an empty shop |
+| `npm run admin:create -- admin@example.com` | Create an admin who signs in with a password (or change that password) |
 | `npm run admin:grant -- you@example.com` | Give an email admin access |
 | `npm run admin:revoke -- you@example.com` | Remove admin access and sign them out |
 | `npm run admin:list` | List admins |
@@ -157,6 +158,7 @@ Copy `.env.example` to `.env.local` for local work, and add the same names in Ve
 | `FIREBASE_CLIENT_EMAIL` | **yes** | `client_email` from the service-account file. |
 | `FIREBASE_PRIVATE_KEY` | **yes** | `private_key` from the service-account file, including the `-----BEGIN…` and `…END-----` lines. In `.env.local` wrap it in double quotes and keep the `\n` sequences. |
 | `ADMIN_EMAILS` | sensitive | Comma-separated emails that become admins when they first sign in (section 6). |
+| `ADMIN_PATH` | sensitive | Optional. A hard-to-guess name for the admin address, replacing `/admin` (section 6). |
 | `RESEND_API_KEY` | **yes** | Resend API key. |
 | `EMAIL_FROM` | no | Sender, e.g. `Miss Noza <orders@missnoza.com>`. The domain must be verified in Resend. |
 | `ORDER_NOTIFICATION_EMAIL` | no | Where new-order emails go. Can be overridden in Admin → Sozlamalar. |
@@ -203,6 +205,24 @@ npm run admin:grant -- you@example.com
 ```
 
 This uses the service-account key in `.env.local`. The person then signs in with the emailed link as usual.
+
+**Option C — a separate admin account with a password (no email link needed)**
+
+```bash
+npm run admin:create -- admin@example.com
+```
+
+The command asks you to type a password twice (at least 12 characters; typing is hidden). The password is sent straight to Firebase: it is never written to a file, to the code or to an environment variable. The email does not have to be a real mailbox, but if it is not, nobody can receive a reset link for it — run the same command again to change the password.
+
+Sign in on the **admin login page**: `/admin/login`, or `/<your ADMIN_PATH>/login` if you hid the admin address (below). The password is checked on the server, wrong attempts are limited (6 per email and 10 per network address every 15 minutes), a correct password on a non-admin account is refused, and every admin sign-in is written to *Amallar tarixi*.
+
+If this password account should be the **only** admin, leave `ADMIN_EMAILS` empty and run `npm run admin:revoke` for any earlier admin email.
+
+**Hiding the admin address**
+
+Set `ADMIN_PATH` to a name that is hard to guess, for example `ADMIN_PATH=boshqaruv-7k2m9x4q` (8–64 lowercase letters, digits or hyphens). The admin area then lives at `/boshqaruv-7k2m9x4q` and its login at `/boshqaruv-7k2m9x4q/login`, while `/admin` answers "page not found". It is a server-only variable, so the name is not in the pages or scripts customers download. Set it in `.env.local` and on Vercel (then redeploy), and keep it out of anything public.
+
+A hidden address is an extra layer, not the protection itself: every admin page and action still checks the admin session, exactly as before. Where this README says `/admin`, use your hidden address instead.
 
 **Removing an admin**
 

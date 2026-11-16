@@ -2,22 +2,31 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition, type ReactNode } from "react";
+import { createContext, useContext, useTransition, type ReactNode } from "react";
 import { ClipboardList, ExternalLink, History, LayoutDashboard, LogOut, Package, Settings, Tags } from "lucide-react";
 import { signOutAction } from "@/app/actions/auth";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 
+/** The admin area's address (hidden when ADMIN_PATH is set), from the server. */
+const AdminBase = createContext("/admin");
+
+/** For browser components: useAdminHref()("/products") → "/<base>/products". */
+export function useAdminHref() {
+  const base = useContext(AdminBase);
+  return (sub = "") => `${base}${sub}`;
+}
+
 const nav = [
-  { href: "/admin", label: "Boshqaruv paneli", icon: LayoutDashboard, exact: true },
-  { href: "/admin/orders", label: "Buyurtmalar", icon: ClipboardList },
-  { href: "/admin/products", label: "Mahsulotlar", icon: Package },
-  { href: "/admin/categories", label: "Kategoriyalar", icon: Tags },
-  { href: "/admin/settings", label: "Sozlamalar", icon: Settings },
-  { href: "/admin/activity", label: "Amallar tarixi", icon: History },
+  { href: "", label: "Boshqaruv paneli", icon: LayoutDashboard, exact: true },
+  { href: "/orders", label: "Buyurtmalar", icon: ClipboardList },
+  { href: "/products", label: "Mahsulotlar", icon: Package },
+  { href: "/categories", label: "Kategoriyalar", icon: Tags },
+  { href: "/settings", label: "Sozlamalar", icon: Settings },
+  { href: "/activity", label: "Amallar tarixi", icon: History },
 ];
 
-export function AdminShell({ email, children }: { email: string; children: ReactNode }) {
+export function AdminShell({ email, base, children }: { email: string; base: string; children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -29,10 +38,11 @@ export function AdminShell({ email, children }: { email: string; children: React
     });
 
   return (
+    <AdminBase value={base}>
     <div className="flex min-h-full flex-1 flex-col bg-sand/50 lg:flex-row">
       <aside className="border-b border-line bg-surface lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:shrink-0 lg:flex-col lg:border-r lg:border-b-0">
         <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-5 lg:py-5">
-          <Link href="/admin" className="font-display text-xl font-semibold">
+          <Link href={base} className="font-display text-xl font-semibold">
             {siteConfig.name} <span className="font-sans text-xs font-semibold tracking-wide text-brand-700 uppercase">Admin</span>
           </Link>
           <button
@@ -45,7 +55,8 @@ export function AdminShell({ email, children }: { email: string; children: React
           </button>
         </div>
         <nav aria-label="Admin menyu" className="flex gap-1 overflow-x-auto px-2 pb-2 lg:flex-1 lg:flex-col lg:overflow-visible lg:px-3">
-          {nav.map(({ href, label, icon: Icon, exact }) => {
+          {nav.map(({ href: sub, label, icon: Icon, exact }) => {
+            const href = `${base}${sub}`;
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -84,6 +95,7 @@ export function AdminShell({ email, children }: { email: string; children: React
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>
+    </AdminBase>
   );
 }
 

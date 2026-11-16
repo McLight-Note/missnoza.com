@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, ImagePlus, Plus, Trash2 } from "lucide-react";
+import { useAdminHref } from "@/components/admin/admin-shell";
 import { deleteProductAction, saveProductAction, uploadProductImageAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Notice, Select, Textarea, fieldAria } from "@/components/ui/form";
@@ -32,6 +33,7 @@ const toInt = (value: string) => (/^\d+$/.test(value.trim()) ? Number(value.trim
 
 export function ProductForm({ product, categories }: { product: Product | null; categories: Category[] }) {
   const router = useRouter();
+  const adminHref = useAdminHref();
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [deleting, startDelete] = useTransition();
@@ -147,7 +149,7 @@ export function ProductForm({ product, categories }: { product: Product | null; 
         product?.updatedAt ?? null,
       ).catch(() => null);
       if (result?.ok) {
-        router.replace(`/admin/products/${result.data.id}?saved=${Date.now()}`);
+        router.replace(adminHref(`/products/${result.data.id}?saved=${Date.now()}`));
         router.refresh();
       } else {
         setErrors(result?.fieldErrors ?? {});
@@ -162,7 +164,7 @@ export function ProductForm({ product, categories }: { product: Product | null; 
     startDelete(async () => {
       const result = await deleteProductAction(product.id).catch(() => null);
       if (result?.ok) {
-        router.replace("/admin/products");
+        router.replace(adminHref("/products"));
         router.refresh();
       } else {
         setError(result?.error ?? "Mahsulotni oʻchirib boʻlmadi. Qayta urinib koʻring.");

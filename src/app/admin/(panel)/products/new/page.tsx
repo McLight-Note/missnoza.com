@@ -8,6 +8,7 @@ import { FreshOnNavigate } from "@/components/ui/fresh-on-navigate";
 import { PageLoading } from "@/components/ui/misc";
 import { listCategories } from "@/server/admin/data";
 import { requireAdminPage } from "@/server/auth";
+import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Mahsulot qoʻshish" };
 
@@ -20,11 +21,11 @@ export default function NewProductPage() {
 }
 
 async function NewProduct() {
-  await requireAdminPage("/admin/products/new");
+  await requireAdminPage();
   const categories = await listCategories();
   return (
     <>
-      <Link href="/admin/products" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link href={adminHref("/products")} className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ChevronLeft className="size-4" aria-hidden="true" /> Barcha mahsulotlar
       </Link>
       <AdminPageHeader title="Mahsulot qoʻshish" />

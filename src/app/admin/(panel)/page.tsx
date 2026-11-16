@@ -11,6 +11,7 @@ import { getDashboard } from "@/server/admin/data";
 import { adminRange } from "@/server/admin/presets";
 import { requireAdminPage } from "@/server/auth";
 import { isEmailConfigured } from "@/server/email";
+import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Boshqaruv paneli" };
 
@@ -33,7 +34,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchParams">) {
-  await requireAdminPage("/admin");
+  await requireAdminPage();
   const params = await searchParams;
   const { range, presets } = adminRange(params.from, params.to);
   const data = await getDashboard(range.start, range.end);
@@ -46,7 +47,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
         description={`${formatDate(range.start)} – ${formatDate(range.end - 1)} · bekor qilingan buyurtmalar tushum va sotilgan donalarga qoʻshilmaydi`}
       />
 
-      <DateRangeForm action="/admin" from={range.fromDay} to={range.toDay} presets={presets} />
+      <DateRangeForm action={adminHref()} from={range.fromDay} to={range.toDay} presets={presets} />
 
       {!isEmailConfigured() && (
         <Notice tone="warning" title="Buyurtma xatlari sozlanmagan" className="mt-4">
@@ -74,7 +75,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
         {ORDER_STATUSES.map((status) => (
           <Link
             key={status}
-            href={`/admin/orders?${rangeQuery}&status=${status}`}
+            href={adminHref(`/orders?${rangeQuery}&status=${status}`)}
             className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-surface px-3.5 text-sm hover:border-brand-300"
           >
             {ORDER_STATUS_LABELS[status]} <span className="font-bold tabular-nums">{data.byStatus[status]}</span>
@@ -91,7 +92,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
           <ul className="mt-3 divide-y divide-line text-sm">
             {data.emailIssues.map((issue) => (
               <li key={issue.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <Link href={`/admin/orders/${issue.id}`} className="font-mono font-semibold text-brand-700 hover:underline">
+                <Link href={adminHref(`/orders/${issue.id}`)} className="font-mono font-semibold text-brand-700 hover:underline">
                   {issue.reference}
                 </Link>
                 <span className="text-muted">{formatDateTime(issue.createdAt)}</span>
@@ -130,7 +131,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
                   {data.sales.map((row) => (
                     <tr key={row.productId}>
                       <td className="px-4 py-3 sm:px-5">
-                        <Link href={`/admin/products/${row.productId}`} className="font-medium hover:underline">
+                        <Link href={adminHref(`/products/${row.productId}`)} className="font-medium hover:underline">
                           {row.name}
                         </Link>
                         {row.variants.length > 0 && (
@@ -158,7 +159,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
             <ul className="divide-y divide-line border-t border-line text-sm">
               {data.lowStock.slice(0, 30).map((item) => (
                 <li key={`${item.id}-${item.label}`} className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
-                  <Link href={`/admin/products/${item.id}`} className="min-w-0 hover:underline">
+                  <Link href={adminHref(`/products/${item.id}`)} className="min-w-0 hover:underline">
                     <span className="font-medium">{item.name}</span>
                     {item.label && <span className="text-muted"> · {item.label}</span>}
                     {!item.active && <span className="text-muted"> (yashirilgan)</span>}

@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/misc";
 import { getSettings, listCategories, listProducts } from "@/server/admin/data";
 import { requireAdminPage } from "@/server/auth";
+import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Mahsulotlar" };
 
@@ -19,7 +20,7 @@ export default function ProductsPage() {
 }
 
 async function Products() {
-  await requireAdminPage("/admin/products");
+  await requireAdminPage();
   const [products, categories, settings] = await Promise.all([listProducts(), listCategories(), getSettings()]);
   return (
     <>
@@ -27,7 +28,7 @@ async function Products() {
         title="Mahsulotlar"
         description={`${products.length} ta mahsulot`}
         actions={
-          <ButtonLink href="/admin/products/new">
+          <ButtonLink href={adminHref("/products/new")}>
             <Plus className="size-4" aria-hidden="true" /> Mahsulot qoʻshish
           </ButtonLink>
         }

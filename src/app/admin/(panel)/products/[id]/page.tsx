@@ -10,6 +10,7 @@ import { Notice } from "@/components/ui/form";
 import { PageLoading } from "@/components/ui/misc";
 import { getProduct, listCategories } from "@/server/admin/data";
 import { requireAdminPage } from "@/server/auth";
+import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Mahsulotni tahrirlash" };
 
@@ -22,7 +23,7 @@ export default function EditProductPage(props: PageProps<"/admin/products/[id]">
 }
 
 async function EditProduct({ params, searchParams }: PageProps<"/admin/products/[id]">) {
-  await requireAdminPage("/admin/products");
+  await requireAdminPage();
   const [{ id }, query] = await Promise.all([params, searchParams]);
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) notFound();
   const [product, categories] = await Promise.all([getProduct(id), listCategories()]);
@@ -30,7 +31,7 @@ async function EditProduct({ params, searchParams }: PageProps<"/admin/products/
 
   return (
     <>
-      <Link href="/admin/products" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link href={adminHref("/products")} className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ChevronLeft className="size-4" aria-hidden="true" /> Barcha mahsulotlar
       </Link>
       <AdminPageHeader

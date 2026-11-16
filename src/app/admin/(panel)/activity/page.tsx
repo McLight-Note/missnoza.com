@@ -17,7 +17,7 @@ export default function ActivityPage() {
 }
 
 async function Activity() {
-  await requireAdminPage("/admin/activity");
+  await requireAdminPage();
   const entries = await listAudit();
   return (
     <>

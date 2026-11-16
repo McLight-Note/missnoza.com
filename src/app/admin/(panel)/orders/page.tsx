@@ -11,6 +11,7 @@ import { formatDateTime, formatMoney } from "@/lib/utils";
 import { listOrders } from "@/server/admin/data";
 import { adminRange } from "@/server/admin/presets";
 import { requireAdminPage } from "@/server/auth";
+import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Buyurtmalar" };
 
@@ -29,7 +30,7 @@ export default function OrdersPage({ searchParams }: PageProps<"/admin/orders">)
 }
 
 async function Orders({ searchParams }: Pick<PageProps<"/admin/orders">, "searchParams">) {
-  await requireAdminPage("/admin/orders");
+  await requireAdminPage();
   const params = await searchParams;
   const { range, presets } = adminRange(params.from, params.to);
   const statusParam = first(params.status);
@@ -42,7 +43,7 @@ async function Orders({ searchParams }: Pick<PageProps<"/admin/orders">, "search
     <>
       <AdminPageHeader title="Buyurtmalar" description={`${orders.length} ta buyurtma koʻrsatilmoqda`} />
 
-      <DateRangeForm action="/admin/orders" from={range.fromDay} to={range.toDay} presets={presets} presetQuery={keep}>
+      <DateRangeForm action={adminHref("/orders")} from={range.fromDay} to={range.toDay} presets={presets} presetQuery={keep}>
         <div>
           <label htmlFor="orders-status" className="mb-1 block text-xs font-medium text-muted">
             Holat
@@ -79,7 +80,7 @@ async function Orders({ searchParams }: Pick<PageProps<"/admin/orders">, "search
               {orders.map((order) => (
                 <li key={order.id}>
                   <Link
-                    href={`/admin/orders/${order.id}`}
+                    href={adminHref(`/orders/${order.id}`)}
                     className="grid gap-x-4 gap-y-1 px-4 py-3.5 hover:bg-brand-50/60 sm:grid-cols-[9.5rem_1fr_auto_7.5rem] sm:items-center sm:px-5"
                   >
                     <div>

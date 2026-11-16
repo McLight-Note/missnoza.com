@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PageLoading } from "@/components/ui/misc";
+import { adminBasePath } from "@/lib/admin-path";
 import { requireAdminPage } from "@/server/auth";
 
 export const metadata: Metadata = {
@@ -28,11 +29,15 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
 }
 
 /**
- * Nothing inside /admin renders until the session cookie has been verified
+ * Nothing inside the admin area renders until the session cookie has been verified
  * with Firebase and carries the admin claim. Each page and every data
  * function repeats the check, so this gate is not the only line of defence.
  */
 async function Gate({ children }: { children: ReactNode }) {
-  const session = await requireAdminPage("/admin");
-  return <AdminShell email={session.email ?? ""}>{children}</AdminShell>;
+  const session = await requireAdminPage();
+  return (
+    <AdminShell email={session.email ?? ""} base={adminBasePath()}>
+      {children}
+    </AdminShell>
+  );
 }

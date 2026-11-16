@@ -10,6 +10,7 @@ import { requireUserPage } from "@/server/auth";
 import { getPublicSettings } from "@/server/catalog";
 import { adminDb } from "@/server/firebase-admin";
 import { getOrdersForUser } from "@/server/orders";
+import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Shaxsiy kabinet", robots: { index: false } };
 
@@ -43,7 +44,7 @@ async function Account() {
         </div>
         <div className="flex gap-2">
           {session.isAdmin && (
-            <ButtonLink href="/admin" size="sm">
+            <ButtonLink href={adminHref()} size="sm">
               Admin panel
             </ButtonLink>
           )}

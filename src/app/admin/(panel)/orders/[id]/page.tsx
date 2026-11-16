@@ -12,6 +12,7 @@ import { formatDateTime, formatMoney } from "@/lib/utils";
 import { orderIdSchema } from "@/lib/validation";
 import { getOrder } from "@/server/admin/data";
 import { requireAdminPage } from "@/server/auth";
+import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Buyurtma" };
 
@@ -39,7 +40,7 @@ function EmailLine({ label, state }: { label: string; state: EmailState }) {
 }
 
 async function OrderDetail({ params }: Pick<PageProps<"/admin/orders/[id]">, "params">) {
-  await requireAdminPage("/admin/orders");
+  await requireAdminPage();
   const { id } = await params;
   const parsed = orderIdSchema.safeParse(id);
   if (!parsed.success) notFound();
@@ -48,7 +49,7 @@ async function OrderDetail({ params }: Pick<PageProps<"/admin/orders/[id]">, "pa
 
   return (
     <>
-      <Link href="/admin/orders" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link href={adminHref("/orders")} className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ChevronLeft className="size-4" aria-hidden="true" /> Barcha buyurtmalar
       </Link>
       <AdminPageHeader
@@ -83,7 +84,7 @@ async function OrderDetail({ params }: Pick<PageProps<"/admin/orders/[id]">, "pa
                   {order.items.map((item) => (
                     <tr key={`${item.productId}-${item.variantId}`}>
                       <td className="px-4 py-3 sm:px-5">
-                        <Link href={`/admin/products/${item.productId}`} className="font-medium hover:underline">
+                        <Link href={adminHref(`/products/${item.productId}`)} className="font-medium hover:underline">
                           {item.name}
                         </Link>
                         {item.variantName && (

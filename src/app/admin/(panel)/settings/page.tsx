@@ -19,7 +19,7 @@ export default function SettingsPage() {
 }
 
 async function Settings() {
-  await requireAdminPage("/admin/settings");
+  await requireAdminPage();
   const settings = await getSettings();
   const envOwnerEmail = Boolean(process.env.ORDER_NOTIFICATION_EMAIL);
   return (

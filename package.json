@@ -14,7 +14,8 @@
     "admin:list": "node scripts/admin.mjs list",
     "emulators": "npx -y firebase-tools emulators:start --project demo-missnoza --import=.emulator-data --export-on-exit=.emulator-data",
     "test:rules": "npx -y firebase-tools emulators:exec --only firestore --project demo-missnoza \"node tests/rules.test.mjs\"",
-    "firebase:deploy": "npx -y firebase-tools deploy --only firestore:rules,firestore:indexes"
+    "firebase:deploy": "npx -y firebase-tools deploy --only firestore:rules,firestore:indexes",
+    "admin:create": "node scripts/admin.mjs create"
   },
   "dependencies": {
     "clsx": "^2.1.1",

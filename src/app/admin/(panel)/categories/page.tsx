@@ -17,7 +17,7 @@ export default function CategoriesPage() {
 }
 
 async function Categories() {
-  await requireAdminPage("/admin/categories");
+  await requireAdminPage();
   const categories = await listCategories();
   return (
     <>

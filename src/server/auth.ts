@@ -3,6 +3,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { adminHref } from "@/lib/admin-path";
 import { adminAuth, isAdminConfigured } from "@/server/firebase-admin";
 
 export const SESSION_COOKIE = "__session";
@@ -66,9 +67,9 @@ export async function assertAdmin(): Promise<SessionUser> {
 }
 
 /** For admin pages: redirects instead of throwing. */
-export async function requireAdminPage(nextPath = "/admin"): Promise<SessionUser> {
+export async function requireAdminPage(): Promise<SessionUser> {
   const session = await getSession();
-  if (!session) redirect(`/sign-in?next=${encodeURIComponent(nextPath)}`);
+  if (!session) redirect(adminHref("/login"));
   if (!session.isAdmin) redirect("/not-authorized");
   return session;
 }

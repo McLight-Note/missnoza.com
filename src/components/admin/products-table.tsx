@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useAdminHref } from "@/components/admin/admin-shell";
 import { Input, Select } from "@/components/ui/form";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { formatMoney } from "@/lib/utils";
 import type { Category, Product } from "@/lib/types";
 
 export function ProductsTable({ products, categories, lowStockThreshold }: { products: Product[]; categories: Category[]; lowStockThreshold: number }) {
+  const adminHref = useAdminHref();
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
   const [show, setShow] = useState("all");
@@ -62,7 +64,7 @@ export function ProductsTable({ products, categories, lowStockThreshold }: { pro
             <ul className="divide-y divide-line">
               {visible.map((p) => (
                 <li key={p.id}>
-                  <Link href={`/admin/products/${p.id}`} className="flex items-center gap-3 px-3 py-3 hover:bg-brand-50/60 sm:gap-4 sm:px-5">
+                  <Link href={adminHref(`/products/${p.id}`)} className="flex items-center gap-3 px-3 py-3 hover:bg-brand-50/60 sm:gap-4 sm:px-5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.images[0]?.url || "/placeholders/product.svg"} alt="" loading="lazy" className="size-14 shrink-0 rounded-lg bg-sand object-cover" />
                     <div className="min-w-0 flex-1">

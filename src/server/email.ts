@@ -5,6 +5,7 @@ import { formatDateTime, formatMoney } from "@/lib/utils";
 import { adminDb } from "@/server/firebase-admin";
 import { mapOrder, mapSettings } from "@/server/mappers";
 import type { EmailState, Order } from "@/lib/types";
+import { adminHref } from "@/lib/admin-path";
 
 /**
  * Transactional email through Resend's HTTP API (https://resend.com).
@@ -100,7 +101,7 @@ function itemsText(order: Order) {
 }
 
 function ownerEmail(order: Order, to: string): Email {
-  const adminUrl = `${siteConfig.url}/admin/orders/${order.id}`;
+  const adminUrl = `${siteConfig.url}${adminHref(`/orders/${order.id}`)}`;
   const phone = formatPhone(order.customer.phone);
   const html = layout(
     `Yangi buyurtma ${order.reference}`,
