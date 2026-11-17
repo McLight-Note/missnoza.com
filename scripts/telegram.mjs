@@ -28,16 +28,29 @@ if (!/^\d{5,20}:[A-Za-z0-9_-]{30,64}$/.test(token)) {
 
 async function call(method, body) {
   let response;
-  try {
-    response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body ?? {}),
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch {
-    // The error object can mention the request URL, which contains the token.
-    return { ok: false, description: "network error: could not reach api.telegram.org" };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+        signal: AbortSignal.timeout(15_000),
+      });
+      break;
+    } catch (error) {
+      // Only the error code is shown: the full error can mention the request
+      // URL, which contains the token.
+      const reason = error?.name === "TimeoutError" ? "TIMEOUT" : (error?.cause?.code ?? error?.name ?? "unknown");
+      if (attempt < 3) {
+        console.error(`  (${method}: network problem ${reason}, retrying…)`);
+        await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+        continue;
+      }
+      return {
+        ok: false,
+        description: `network error (${reason}): could not reach api.telegram.org. Check your internet / VPN and try again.`,
+      };
+    }
   }
   const data = await response.json().catch(() => ({ ok: false, description: `HTTP ${response.status}` }));
   if (typeof data.description === "string") data.description = data.description.split(token).join("***");
