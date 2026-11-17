@@ -11,6 +11,7 @@ import { getDashboard } from "@/server/admin/data";
 import { adminRange } from "@/server/admin/presets";
 import { requireAdminPage } from "@/server/auth";
 import { isEmailConfigured } from "@/server/email";
+import { telegramConfig } from "@/server/telegram";
 import { adminHref } from "@/lib/admin-path";
 
 export const metadata: Metadata = { title: "Boshqaruv paneli" };
@@ -39,6 +40,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
   const { range, presets } = adminRange(params.from, params.to);
   const data = await getDashboard(range.start, range.end);
   const rangeQuery = `from=${range.fromDay}&to=${range.toDay}`;
+  const telegram = telegramConfig();
 
   return (
     <>
@@ -52,6 +54,11 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
       {!isEmailConfigured() && (
         <Notice tone="warning" title="Buyurtma xatlari sozlanmagan" className="mt-4">
           Yangi buyurtmalar saqlanadi, lekin RESEND_API_KEY va EMAIL_FROM sozlanmaguncha xabarnoma xati yuborilmaydi. README fayliga qarang.
+        </Notice>
+      )}
+      {!telegram.ok && (
+        <Notice tone="warning" title="Telegram xabarnomalari sozlanmagan" className="mt-4">
+          {telegram.error} Yangi buyurtmalar saqlanadi, lekin adminlarga Telegram xabari yuborilmaydi. README fayliga qarang.
         </Notice>
       )}
       {data.truncated && (
@@ -91,6 +98,26 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchPara
           </p>
           <ul className="mt-3 divide-y divide-line text-sm">
             {data.emailIssues.map((issue) => (
+              <li key={issue.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <Link href={adminHref(`/orders/${issue.id}`)} className="font-mono font-semibold text-brand-700 hover:underline">
+                  {issue.reference}
+                </Link>
+                <span className="text-muted">{formatDateTime(issue.createdAt)}</span>
+                <span className="w-full truncate text-xs text-muted">{issue.error ?? "Yuborish yakunlanmagan"}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {data.telegramIssues.length > 0 && (
+        <Card className="mt-6 border-danger/30 p-4 sm:p-5">
+          <h2 className="font-sans text-base font-bold text-danger">Telegramga yetib bormagan buyurtmalar</h2>
+          <p className="mt-1 text-sm text-muted">
+            Bu buyurtmalar saqlangan, lekin adminlarga Telegram xabari yetib bormagan. Qayta yuborish uchun buyurtmani oching.
+          </p>
+          <ul className="mt-3 divide-y divide-line text-sm">
+            {data.telegramIssues.map((issue) => (
               <li key={issue.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <Link href={adminHref(`/orders/${issue.id}`)} className="font-mono font-semibold text-brand-700 hover:underline">
                   {issue.reference}

@@ -19,6 +19,7 @@ import {
   deleteCategory,
   deleteProduct,
   recordEmailRetry,
+  recordTelegramRetry,
   saveCategory,
   saveProduct,
   saveSettings,
@@ -27,6 +28,7 @@ import {
 } from "@/server/admin/mutations";
 import { CATALOG_TAG, SETTINGS_TAG } from "@/server/catalog";
 import { sendOrderEmails } from "@/server/email";
+import { sendOrderTelegram } from "@/server/telegram";
 import type { ActionResult } from "@/lib/types";
 
 /**
@@ -138,6 +140,26 @@ export async function resendOrderEmailsAction(orderId: string) {
     const after = await getOrder(id);
     if (after && after.emails.owner.status !== "sent") {
       throw new AdminError(`Xat baribir yuborilmadi: ${after.emails.owner.error ?? "nomaʼlum xato"}`);
+    }
+    return null;
+  });
+}
+
+/**
+ * Re-send the Telegram notification for an order to the admin chats that
+ * have not received it yet, and report what happened.
+ */
+export async function resendTelegramAction(orderId: string) {
+  return run(async () => {
+    const id = orderIdSchema.parse(orderId);
+    const order = await getOrder(id); // verifies the admin session
+    if (!order) throw new AdminError("Bu buyurtma endi mavjud emas.", "NOT_FOUND");
+    if (order.telegramAlert.status === "sent") throw new AdminError("Bu buyurtma Telegramga allaqachon yuborilgan.");
+    await recordTelegramRetry(id, order.reference);
+    const result = await sendOrderTelegram(id, { manual: true });
+    if (result.outcome === "busy") throw new AdminError("Xabar hozir yuborilmoqda. Birozdan keyin sahifani yangilang.");
+    if (result.outcome !== "sent") {
+      throw new AdminError(`Telegramga yuborilmadi: ${result.error ?? "nomaʼlum xato"}`);
     }
     return null;
   });

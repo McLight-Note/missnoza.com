@@ -35,6 +35,7 @@ Until you save it, the page shows placeholders (for example `+998 00 000 00 00`)
 3. [Create the Firebase project](#3-create-the-firebase-project)
 4. [Environment variables](#4-environment-variables)
 5. [Set up email (Resend)](#5-set-up-email-resend)
+   - [Telegram notifications for new orders](#5b-telegram-notifications-for-new-orders)
 6. [Create the first admin](#6-create-the-first-admin)
 7. [Deploy to Vercel](#7-deploy-to-vercel)
 8. [Phone numbers: allowed regions and testing](#8-phone-numbers-allowed-regions-and-testing)
@@ -176,6 +177,27 @@ What gets sent:
 If an email fails, **the order is never lost**. The failure is stored on the order, the dashboard shows an "Order emails that need attention" box, and the order page has a **Re-send notification email** button.
 
 To use a different provider, replace the body of `sendEmail` in [src/server/email.ts](src/server/email.ts); nothing else talks to the provider.
+
+## 5b. Telegram notifications for new orders
+
+Every new order can also be sent as a Telegram message to you and other admins. Optional; free.
+
+1. In Telegram, open **@BotFather**, send `/newbot`, choose a name and a username ending in `bot`. Put the token it gives you in `TELEGRAM_BOT_TOKEN` in `.env.local`. Never paste it anywhere else.
+2. **Every admin opens your bot and presses Start.** A bot cannot message someone who has not done this. For a group: add the bot to the group and send `/start@your_bot` there.
+3. Run `npm run telegram:chat-ids`. Copy the IDs of the admins (or the group, which starts with `-`) into `TELEGRAM_ADMIN_CHAT_IDS`, comma-separated.
+4. Run `npm run telegram:test`: each chat should receive a test message.
+5. Set `CRON_SECRET` to a random string (`openssl rand -hex 32`).
+6. On Vercel, add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_IDS`, `CRON_SECRET` (and optionally `TELEGRAM_OMIT_FIELDS`), then redeploy.
+
+The message contains the order number, items, totals, customer name, phone, Telegram username, delivery area and address, the note, and a link to the order in the admin. To leave details out, set e.g. `TELEGRAM_OMIT_FIELDS=address,notes` (allowed: `name,phone,telegram,address,notes`). Telegram stores these messages on its servers and shows them in phone notifications.
+
+How delivery works ([src/server/telegram.ts](src/server/telegram.ts)):
+
+- The order and a `telegramAlert` record (`pending`) are saved together. Right after checkout the server sends the message; the record becomes `sent` only after Telegram confirms every chat.
+- If sending fails, the record is `failed` with the reason. The dashboard shows "Telegramga yetib bormagan buyurtmalar", the order page shows the status and a **Telegramga qayta yuborish** button, and a retry only goes to chats that did not receive it yet.
+- A daily Vercel Cron job ([vercel.json](vercel.json), 04:00 UTC) retries notifications that failed or never finished, up to 5 automatic attempts per order. On the Hobby plan Vercel allows cron jobs at most once a day; on Pro you can change the schedule to e.g. `*/5 * * * *`.
+- Delivery is *at least once*: in rare cases (the server stops right after Telegram accepted a message) a message can arrive twice. An order never goes missing because of Telegram: checkout does not depend on it.
+- Orders placed before this was set up are not sent automatically; use the button on the order page if you want them.
 
 ---
 

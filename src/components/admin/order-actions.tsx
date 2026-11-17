@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useLayoutEffect, useState, useTransition, type FormEvent } from "react";
-import { addOrderNoteAction, resendOrderEmailsAction, updateOrderStatusAction } from "@/app/admin/actions";
+import { addOrderNoteAction, resendOrderEmailsAction, resendTelegramAction, updateOrderStatusAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Notice, Select, Textarea } from "@/components/ui/form";
 import { ORDER_STATUSES, ORDER_STATUS_LABELS, type ActionResult, type OrderStatus } from "@/lib/types";
@@ -103,6 +103,18 @@ export function ResendEmailButton({ orderId }: { orderId: string }) {
     <div className="space-y-2">
       <Button variant="secondary" size="sm" loading={pending} onClick={() => run(() => resendOrderEmailsAction(orderId), "Xat yuborildi.")}>
         Xabarnomani qayta yuborish
+      </Button>
+      {message && <Notice tone={message.tone}>{message.text}</Notice>}
+    </div>
+  );
+}
+
+export function ResendTelegramButton({ orderId }: { orderId: string }) {
+  const { pending, message, run } = useAdminAction();
+  return (
+    <div className="space-y-2">
+      <Button variant="secondary" size="sm" loading={pending} onClick={() => run(() => resendTelegramAction(orderId), "Telegramga yuborildi.")}>
+        Telegramga qayta yuborish
       </Button>
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
     </div>

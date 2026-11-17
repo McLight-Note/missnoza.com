@@ -175,6 +175,17 @@ export async function createOrder(input: ValidCheckout): Promise<CreateOrderResu
         // Customers do not leave an email address, so there is no customer email.
         customer: { ...pending, status: "skipped" },
       },
+      // Outbox record for the admins' Telegram notification. Written in the
+      // same transaction, so it exists exactly when the order does.
+      // See src/server/telegram.ts.
+      telegramAlert: {
+        ...pending,
+        queued: true,
+        nextAttemptAt: null,
+        claimId: null,
+        leaseUntil: null,
+        deliveredTo: [],
+      },
       internalNotes: [],
       history: [{ status: "new", at: now, byEmail: null }],
       createdAt: FieldValue.serverTimestamp(),

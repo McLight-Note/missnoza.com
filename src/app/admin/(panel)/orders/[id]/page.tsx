@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ChevronLeft } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
-import { OrderNoteForm, OrderStatusForm, ResendEmailButton } from "@/components/admin/order-actions";
+import { OrderNoteForm, OrderStatusForm, ResendEmailButton, ResendTelegramButton } from "@/components/admin/order-actions";
 import { Badge, Card, PageLoading, StatusBadge } from "@/components/ui/misc";
 import { formatPhone } from "@/lib/phone";
-import { ORDER_STATUS_LABELS, type EmailState } from "@/lib/types";
+import { ORDER_STATUS_LABELS, type EmailState, type TelegramAlertState } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/utils";
 import { orderIdSchema } from "@/lib/validation";
 import { getOrder } from "@/server/admin/data";
@@ -25,9 +25,23 @@ export default function OrderPage({ params }: PageProps<"/admin/orders/[id]">) {
   );
 }
 
-function EmailLine({ label, state }: { label: string; state: EmailState }) {
+function EmailLine({
+  label,
+  state,
+  skippedLabel = "Soʻralmagan",
+}: {
+  label: string;
+  state: EmailState | TelegramAlertState;
+  skippedLabel?: string;
+}) {
   const tone = state.status === "sent" ? "success" : state.status === "failed" ? "danger" : "neutral";
-  const text = { sent: "Yuborilgan", failed: "Yuborilmadi", pending: "Kutilmoqda", skipped: "Soʻralmagan" }[state.status];
+  const text = {
+    sent: "Yuborilgan",
+    failed: "Yuborilmadi",
+    pending: "Kutilmoqda",
+    sending: "Yuborilmoqda",
+    skipped: skippedLabel,
+  }[state.status];
   return (
     <div className="text-sm">
       <div className="flex items-center justify-between gap-2">
@@ -211,11 +225,15 @@ async function OrderDetail({ params }: Pick<PageProps<"/admin/orders/[id]">, "pa
           </Card>
 
           <Card className="space-y-3 p-4 sm:p-5">
-            <h2 className="font-sans text-base font-bold">Xatlar</h2>
+            <h2 className="font-sans text-base font-bold">Xabarnomalar</h2>
             <EmailLine label="Doʻkonga xabarnoma" state={order.emails.owner} />
             {/* Only older orders, placed when checkout still asked for an email, have one. */}
             {order.customer.email && <EmailLine label="Mijozga tasdiq xati" state={order.emails.customer} />}
             <ResendEmailButton orderId={order.id} />
+            <div className="border-t border-line pt-3">
+              <EmailLine label="Telegram (adminlarga)" state={order.telegramAlert} skippedLabel="Yuborilmagan" />
+            </div>
+            {order.telegramAlert.status !== "sent" && <ResendTelegramButton orderId={order.id} />}
           </Card>
         </div>
       </div>

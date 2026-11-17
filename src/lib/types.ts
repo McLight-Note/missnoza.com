@@ -151,6 +151,29 @@ export type EmailState = {
   lastAttemptAt: number | null;
 };
 
+/**
+ * The Telegram "new order" notification for the shop's admins, kept on the
+ * order as an outbox record. See src/server/telegram.ts:
+ * pending → sending → sent | failed (retried later). "skipped" = Telegram is
+ * not set up, or the order is older than this feature.
+ */
+export type TelegramAlertStatus = "pending" | "sending" | "sent" | "failed" | "skipped";
+export type TelegramAlertState = {
+  status: TelegramAlertStatus;
+  error: string | null;
+  attempts: number;
+  lastAttemptAt: number | null;
+  /** True while an automatic (cron) attempt is still allowed. */
+  queued: boolean;
+  /** Earliest time the next automatic attempt may run. */
+  nextAttemptAt: number | null;
+  /** Which send currently holds the record, and until when (crash recovery). */
+  claimId: string | null;
+  leaseUntil: number | null;
+  /** Chat IDs for which Telegram has confirmed delivery of this order. */
+  deliveredTo: string[];
+};
+
 export type OrderNote = { id: string; text: string; authorEmail: string; createdAt: number };
 export type OrderHistoryEntry = { status: OrderStatus; at: number; byEmail: string | null };
 
@@ -170,6 +193,7 @@ export type Order = {
   /** True once a cancelled order's stock has been returned to inventory. */
   stockReleased: boolean;
   emails: { owner: EmailState; customer: EmailState };
+  telegramAlert: TelegramAlertState;
   internalNotes: OrderNote[];
   history: OrderHistoryEntry[];
   createdAt: number;

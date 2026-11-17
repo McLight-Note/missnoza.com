@@ -97,6 +97,7 @@ export type Dashboard = {
   lowStock: { id: string; name: string; label: string; stock: number; active: boolean }[];
   lowStockThreshold: number;
   emailIssues: { id: string; reference: string; createdAt: number; error: string | null; status: string }[];
+  telegramIssues: { id: string; reference: string; createdAt: number; error: string | null; status: string }[];
   truncated: boolean;
 };
 
@@ -106,7 +107,7 @@ const DASHBOARD_LIMIT = 5000;
 export async function getDashboard(start: number, end: number): Promise<Dashboard> {
   await assertAdmin();
   const db = adminDb();
-  const [orderSnap, productSnap, settingsSnap, failedSnap, pendingSnap] = await Promise.all([
+  const [orderSnap, productSnap, settingsSnap, failedSnap, pendingSnap, telegramSnap] = await Promise.all([
     db
       .collection("orders")
       .where("createdAt", ">=", Timestamp.fromMillis(start))
@@ -118,6 +119,7 @@ export async function getDashboard(start: number, end: number): Promise<Dashboar
     db.collection("settings").doc("store").get(),
     db.collection("orders").where("emails.owner.status", "==", "failed").limit(20).get(),
     db.collection("orders").where("emails.owner.status", "==", "pending").limit(20).get(),
+    db.collection("orders").where("telegramAlert.status", "in", ["failed", "pending", "sending"]).limit(20).get(),
   ]);
 
   const settings = mapSettings(settingsSnap.data());
@@ -182,6 +184,17 @@ export async function getDashboard(start: number, end: number): Promise<Dashboar
       error: o.emails.owner.error,
       status: o.emails.owner.status,
     }));
+  const telegramIssues = telegramSnap.docs
+    .map(mapOrder)
+    .filter((o) => o.telegramAlert.status === "failed" || o.createdAt < stalePendingBefore)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((o) => ({
+      id: o.id,
+      reference: o.reference,
+      createdAt: o.createdAt,
+      error: o.telegramAlert.error,
+      status: o.telegramAlert.status,
+    }));
 
   return {
     orderCount: orders.length,
@@ -199,6 +212,7 @@ export async function getDashboard(start: number, end: number): Promise<Dashboar
     lowStock: lowStock.sort((a, b) => a.stock - b.stock),
     lowStockThreshold: settings.lowStockThreshold,
     emailIssues,
+    telegramIssues,
     truncated: orderSnap.size >= DASHBOARD_LIMIT,
   };
 }

@@ -8,6 +8,7 @@ import { sendOrderEmails } from "@/server/email";
 import { isAdminConfigured } from "@/server/firebase-admin";
 import { createOrder, type CartIssue } from "@/server/orders";
 import { clientIp, rateLimit, retryMessage, sweepExpired } from "@/server/rate-limit";
+import { sendOrderTelegram } from "@/server/telegram";
 import type { ActionResult, DeliveryArea } from "@/lib/types";
 
 export type QuoteLine = {
@@ -168,9 +169,13 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
     if (!result.duplicate) {
       if (result.stockRunningLow) updateTag(CATALOG_TAG);
       const { orderId } = result;
-      // Runs after the response is sent, so slow email never delays the customer.
+      // Runs after the response is sent, so slow email or Telegram never
+      // delays the customer. Each records its own outcome on the order.
       after(async () => {
-        await sendOrderEmails(orderId).catch((error) => console.error("[order] email step failed", error));
+        await Promise.all([
+          sendOrderEmails(orderId).catch((error) => console.error("[order] email step failed", error)),
+          sendOrderTelegram(orderId).catch((error) => console.error("[order] telegram step failed", error)),
+        ]);
         await sweepExpired();
       });
     }

@@ -11,6 +11,7 @@ import type {
   Product,
   ProductImage,
   StoreSettings,
+  TelegramAlertState,
   Variant,
 } from "@/lib/types";
 import { ORDER_STATUSES } from "@/lib/types";
@@ -109,6 +110,29 @@ function mapEmailState(raw: unknown): EmailState {
   };
 }
 
+/**
+ * Orders placed before Telegram notifications existed have no `telegramAlert`
+ * field. They read as "skipped" so nothing is ever sent for them automatically.
+ */
+export function mapTelegramAlert(raw: unknown): TelegramAlertState {
+  const t = obj(raw);
+  const missing = raw === undefined || raw === null;
+  const status = missing ? "skipped" : str(t.status, "pending");
+  return {
+    status: (["pending", "sending", "sent", "failed", "skipped"] as const).includes(status as never)
+      ? (status as TelegramAlertState["status"])
+      : "pending",
+    error: typeof t.error === "string" ? t.error : null,
+    attempts: int(t.attempts),
+    lastAttemptAt: intOrNull(t.lastAttemptAt),
+    queued: t.queued === true,
+    nextAttemptAt: intOrNull(t.nextAttemptAt),
+    claimId: typeof t.claimId === "string" ? t.claimId : null,
+    leaseUntil: intOrNull(t.leaseUntil),
+    deliveredTo: arr(t.deliveredTo).filter((v): v is string => typeof v === "string"),
+  };
+}
+
 const asStatus = (v: unknown): OrderStatus =>
   (ORDER_STATUSES as readonly string[]).includes(str(v)) ? (v as OrderStatus) : "new";
 
@@ -151,6 +175,7 @@ export function mapOrder(snap: DocumentSnapshot): Order {
     notes: str(d.notes),
     stockReleased: d.stockReleased === true,
     emails: { owner: mapEmailState(emails.owner), customer: mapEmailState(emails.customer) },
+    telegramAlert: mapTelegramAlert(d.telegramAlert),
     internalNotes: arr(d.internalNotes).map((raw) => {
       const n = obj(raw);
       return { id: str(n.id), text: str(n.text), authorEmail: str(n.authorEmail), createdAt: int(n.createdAt) };

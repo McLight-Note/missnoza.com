@@ -96,6 +96,9 @@ async function Orders({ searchParams }: Pick<PageProps<"/admin/orders">, "search
                     <div className="flex items-center gap-2">
                       <StatusBadge status={order.status} />
                       {order.emails.owner.status === "failed" && <span className="text-xs font-semibold text-danger">Xat yuborilmadi</span>}
+                      {order.telegramAlert.status === "failed" && (
+                        <span className="text-xs font-semibold text-danger">Telegram yuborilmadi</span>
+                      )}
                     </div>
                     <p className="text-sm font-bold tabular-nums sm:text-right">{formatMoney(order.total)}</p>
                   </Link>

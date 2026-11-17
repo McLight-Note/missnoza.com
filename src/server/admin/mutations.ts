@@ -390,3 +390,15 @@ export async function recordEmailRetry(orderId: string, reference: string) {
   });
   await batch.commit();
 }
+
+export async function recordTelegramRetry(orderId: string, reference: string) {
+  const session = await assertAdmin();
+  const batch = adminDb().batch();
+  audit(batch, session, {
+    action: "order.telegram_retry",
+    targetType: "order",
+    targetId: orderId,
+    summary: `${reference} buyurtmasi boʻyicha Telegram xabarnomasi qayta yuborildi`,
+  });
+  await batch.commit();
+}
