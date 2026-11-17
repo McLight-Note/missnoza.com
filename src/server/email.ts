@@ -6,6 +6,7 @@ import { adminDb } from "@/server/firebase-admin";
 import { mapOrder, mapSettings } from "@/server/mappers";
 import type { EmailState, Order } from "@/lib/types";
 import { adminHref } from "@/lib/admin-path";
+import { telegramUrl } from "@/lib/telegram";
 
 /**
  * Transactional email through Resend's HTTP API (https://resend.com).
@@ -110,7 +111,9 @@ ${totalsBlock(order)}
 <h2 style="font-size:15px;margin:20px 0 6px">Mijoz</h2>
 <p style="margin:0;font-size:14px;line-height:1.6">${esc(order.customer.name)}<br>
 <a href="tel:${esc(order.customer.phone)}" style="color:#8a2749">${esc(phone)}</a>${
-      order.customer.email ? `<br>${esc(order.customer.email)}` : ""
+      order.customer.telegram
+        ? `<br>Telegram: <a href="${esc(telegramUrl(order.customer.telegram))}" style="color:#8a2749">@${esc(order.customer.telegram)}</a>`
+        : ""
     }</p>
 <h2 style="font-size:15px;margin:20px 0 6px">Yetkazib berish</h2>
 <p style="margin:0;font-size:14px;line-height:1.6">${esc(order.delivery.areaName)}<br>${esc(order.delivery.address)}</p>
@@ -132,7 +135,7 @@ Yetkazib berish: ${order.deliveryFee === 0 ? "Bepul" : formatMoney(order.deliver
 Jami: ${formatMoney(order.total)}
 
 Mijoz: ${order.customer.name}
-Telefon: ${phone}${order.customer.email ? `\nEmail: ${order.customer.email}` : ""}
+Telefon: ${phone}${order.customer.telegram ? `\nTelegram: @${order.customer.telegram} (${telegramUrl(order.customer.telegram)})` : ""}
 Manzil: ${order.delivery.areaName}, ${order.delivery.address}${order.notes ? `\nIzoh: ${order.notes}` : ""}
 
 ${adminUrl}`;
@@ -141,7 +144,6 @@ ${adminUrl}`;
     subject: `Yangi buyurtma ${order.reference} · ${formatMoney(order.total)}`,
     html,
     text,
-    replyTo: order.customer.email ?? undefined,
   };
 }
 
@@ -170,21 +172,6 @@ Manzil: ${order.delivery.areaName}, ${order.delivery.address}
 
 Yetkazib berishni tasdiqlash uchun ${formatPhone(order.customer.phone)} raqamiga bogʻlanamiz. Toʻlov yetkazib berilganda yoki doʻkon bilan kelishilgan tartibda amalga oshiriladi.`;
   return { to, subject: `${siteConfig.name}: ${order.reference} raqamli buyurtmangiz`, html, text };
-}
-
-export function signInEmail(to: string, link: string): Email {
-  const html = layout(
-    `${siteConfig.name} saytiga kirish`,
-    `<p style="margin:0 0 16px;font-size:14px;line-height:1.6">Kirishni yakunlash uchun quyidagi tugmani bosing. Havola faqat bir marta ishlaydi va tez orada muddati tugaydi.</p>
-<p style="margin:0 0 16px"><a href="${esc(link)}" style="display:inline-block;background:#8a2749;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:15px">Kirish</a></p>
-<p style="margin:0;font-size:13px;color:#6f5d63;line-height:1.6">Agar bu xatni siz soʻramagan boʻlsangiz, eʼtibor bermang — bu havolasiz hech kim kira olmaydi.</p>`,
-  );
-  return {
-    to,
-    subject: `${siteConfig.name}: kirish havolasi`,
-    html,
-    text: `${siteConfig.name} saytiga kirish uchun ushbu havolani oching (u faqat bir marta ishlaydi va tez orada muddati tugaydi):\n\n${link}\n\nAgar bu xatni siz soʻramagan boʻlsangiz, eʼtibor bermang.`,
-  };
 }
 
 export type OrderEmailKind = "owner" | "customer";

@@ -47,11 +47,6 @@ export function SiteFooter({ categories, contact, year }: { categories: Category
                 Maxfiylik
               </Link>
             </li>
-            <li>
-              <Link href="/account" className="text-muted hover:text-ink hover:underline">
-                Shaxsiy kabinet
-              </Link>
-            </li>
           </ul>
         </nav>
         <div>

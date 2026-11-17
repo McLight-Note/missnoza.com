@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { siteConfig } from "@/config/site";
 import { normalizePhone } from "@/lib/phone";
+import { normalizeTelegram } from "@/lib/telegram";
 import { ORDER_STATUSES } from "@/lib/types";
 
 /** Schemas shared by forms (instant feedback) and the server (the real check). */
@@ -47,7 +48,11 @@ export const checkoutSchema = z.object({
   lines: cartLinesSchema,
   name: text(80).min(2, "Ism va familiyangizni kiriting."),
   phone: phoneSchema,
-  email: z.union([z.literal(""), emailSchema]),
+  telegram: z
+    .string()
+    .max(100)
+    .refine((value) => normalizeTelegram(value) !== null, "Telegram foydalanuvchi nomini kiriting, masalan: @miss_noza")
+    .transform((value) => normalizeTelegram(value) ?? ""),
   areaId: z.string().min(1, "Yetkazib berish hududini tanlang.").max(64).regex(/^[A-Za-z0-9_-]+$/),
   address: text(300).min(5, "Yetkazib berish manzilini kiriting."),
   notes: text(500),
@@ -57,13 +62,6 @@ export const checkoutSchema = z.object({
   company: z.string().max(200).optional(),
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
-
-export const profileSchema = z.object({
-  name: text(80),
-  phone: z.union([z.literal(""), phoneSchema]),
-  address: text(300),
-  areaId: z.union([z.literal(""), id]),
-});
 
 // ───────── Admin ─────────
 

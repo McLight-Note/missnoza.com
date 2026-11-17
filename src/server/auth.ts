@@ -7,8 +7,7 @@ import { adminHref } from "@/lib/admin-path";
 import { adminAuth, isAdminConfigured } from "@/server/firebase-admin";
 
 export const SESSION_COOKIE = "__session";
-// 14 days is the longest Firebase allows. Long sessions matter on the free
-// plan, where only a few sign-in emails can be sent per day.
+// Admin sessions last 14 days, the longest Firebase allows.
 export const SESSION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
 export type SessionUser = {
@@ -18,14 +17,6 @@ export type SessionUser = {
   /** True only when Firebase holds a verified `admin` custom claim. */
   isAdmin: boolean;
 };
-
-/** Emails allowed to bootstrap themselves as admin on first sign-in. */
-export function bootstrapAdminEmails() {
-  return (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
 
 /**
  * Read and verify the signed session cookie. The cookie is httpOnly and is
@@ -71,12 +62,6 @@ export async function requireAdminPage(): Promise<SessionUser> {
   const session = await getSession();
   if (!session) redirect(adminHref("/login"));
   if (!session.isAdmin) redirect("/not-authorized");
-  return session;
-}
-
-export async function requireUserPage(nextPath = "/account"): Promise<SessionUser> {
-  const session = await getSession();
-  if (!session) redirect(`/sign-in?next=${encodeURIComponent(nextPath)}`);
   return session;
 }
 

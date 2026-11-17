@@ -36,40 +36,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Orders hold customer contact details. A signed-in customer may read
-    // only orders placed with their own account; admins may read all.
-    // Nobody can create, change or delete an order from a browser — prices,
-    // totals, stock and status are decided on the server.
+    // Orders hold customer contact details: admins only. Nobody can create,
+    // change or delete an order from a browser — prices, totals, stock and
+    // status are decided on the server.
     match /orders/{orderId} {
-      allow get: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin();
       allow write: if false;
-    }
-
-    // Customer profiles: the owner may read their own profile and edit only
-    // the listed contact fields (never roles or anyone else's profile).
-    match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
-      allow create: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['name', 'phone', 'address', 'areaId', 'email', 'updatedAt'])
-        && validProfile();
-      allow update: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'address', 'areaId', 'updatedAt'])
-        && validProfile();
-      allow delete: if false;
-    }
-
-    function shortText(d, field, max) {
-      return !(field in d) || (d[field] is string && d[field].size() <= max);
-    }
-
-    function validProfile() {
-      return shortText(request.resource.data, 'name', 80)
-        && shortText(request.resource.data, 'phone', 32)
-        && shortText(request.resource.data, 'address', 300)
-        && shortText(request.resource.data, 'areaId', 64);
     }
 
     // Store settings include the owner's notification email: admins only.

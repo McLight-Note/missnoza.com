@@ -17,8 +17,8 @@ const sections = [
   {
     title: "Qanday maʼlumotlarni yigʻamiz",
     body: [
-      "Buyurtma berganingizda ismingiz, telefon raqamingiz, yetkazib berish manzilingiz va oʻzingiz yozgan izohni soʻraymiz. Email manzil ixtiyoriy boʻlib, faqat buyurtma tasdigʻini yuborish uchun ishlatiladi.",
-      "Agar hisob ochsangiz, email manzilingiz va oʻzingiz saqlagan yetkazib berish maʼlumotlari saqlanadi.",
+      "Buyurtma berganingizda ismingiz, telefon raqamingiz, yetkazib berish manzilingiz va oʻzingiz yozgan izohni soʻraymiz. Telegram foydalanuvchi nomi ixtiyoriy boʻlib, buyurtma boʻyicha siz bilan bogʻlanish uchun ishlatiladi.",
+      "Saytda hisob ochish yoki tizimga kirish talab qilinmaydi.",
     ],
   },
   {
@@ -36,13 +36,13 @@ const sections = [
   {
     title: "Cookie fayllar va saqlash",
     body: [
-      "Savatingiz oʻz brauzeringizda saqlanadi. Tizimga kirsangiz, xavfsiz cookie fayli sizni tizimda saqlab turadi. Reklama yoki kuzatuv cookie fayllaridan foydalanmaymiz.",
+      "Savatingiz oʻz brauzeringizda saqlanadi. Reklama yoki kuzatuv cookie fayllaridan foydalanmaymiz.",
     ],
   },
   {
     title: "Xizmat koʻrsatuvchilar",
     body: [
-      "Sayt Vercel serverlarida joylashgan. Buyurtmalar va hisoblar Google Firebase xizmatida saqlanadi, xatlar esa email yuborish xizmati orqali joʻnatiladi. Bu xizmatlar maʼlumotlarni faqat doʻkon ishlashi uchun qayta ishlaydi.",
+      "Sayt Vercel serverlarida joylashgan. Buyurtmalar Google Firebase xizmatida saqlanadi, xatlar esa email yuborish xizmati orqali joʻnatiladi. Bu xizmatlar maʼlumotlarni faqat doʻkon ishlashi uchun qayta ishlaydi.",
     ],
   },
   {

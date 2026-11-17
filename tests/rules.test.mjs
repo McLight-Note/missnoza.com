@@ -33,10 +33,9 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, "products/visible"), { name: "Visible", active: true, price: 100 });
   await setDoc(doc(db, "products/hidden"), { name: "Hidden", active: false, price: 100 });
   await setDoc(doc(db, "categories/skincare"), { name: "Skincare" });
-  await setDoc(doc(db, "orders/alice-order"), { userId: "alice", total: 100, customer: { phone: "+998901234567" } });
-  await setDoc(doc(db, "orders/guest-order"), { userId: null, total: 200, customer: { phone: "+998907654321" } });
+  await setDoc(doc(db, "orders/old-order"), { userId: "alice", total: 100, customer: { phone: "+998901234567" } });
+  await setDoc(doc(db, "orders/guest-order"), { total: 200, customer: { phone: "+998907654321", telegram: "someone" } });
   await setDoc(doc(db, "users/alice"), { email: "alice@example.com", name: "Alice" });
-  await setDoc(doc(db, "users/bob"), { email: "bob@example.com", name: "Bob" });
   await setDoc(doc(db, "settings/store"), { ownerEmail: "owner@example.com" });
   await setDoc(doc(db, "auditLogs/one"), { summary: "x" });
   await setDoc(doc(db, "rateLimits/one"), { count: 1 });
@@ -45,7 +44,6 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
 const guest = env.unauthenticatedContext();
 const alice = env.authenticatedContext("alice", { email: "alice@example.com", email_verified: true });
-const bob = env.authenticatedContext("bob", { email: "bob@example.com", email_verified: true });
 const admin = env.authenticatedContext("owner", { email: "owner@example.com", email_verified: true, admin: true });
 const unverifiedAdmin = env.authenticatedContext("fake", { email: "fake@example.com", email_verified: false, admin: true });
 
@@ -65,27 +63,19 @@ console.log("\nOrders");
 await check("guest cannot read an order", assertFails(getDoc(doc(guest.firestore(), "orders/guest-order"))));
 await check("guest cannot list orders", assertFails(getDocs(collection(guest.firestore(), "orders"))));
 await check("guest cannot create an order directly", assertFails(setDoc(doc(guest.firestore(), "orders/x"), { total: 1 })));
-await check("customer can read their own order", assertSucceeds(getDoc(doc(alice.firestore(), "orders/alice-order"))));
-await check("customer cannot read someone else's order", assertFails(getDoc(doc(bob.firestore(), "orders/alice-order"))));
-await check("customer cannot read a guest order", assertFails(getDoc(doc(alice.firestore(), "orders/guest-order"))));
-await check("customer can list only their own orders", assertSucceeds(getDocs(query(collection(alice.firestore(), "orders"), where("userId", "==", "alice")))));
+await check("signed-in non-admin cannot read an order", assertFails(getDoc(doc(alice.firestore(), "orders/guest-order"))));
+await check("an old order's userId no longer gives access", assertFails(getDoc(doc(alice.firestore(), "orders/old-order"))));
+await check("non-admin cannot list orders by userId", assertFails(getDocs(query(collection(alice.firestore(), "orders"), where("userId", "==", "alice")))));
 await check("customer cannot list everyone's orders", assertFails(getDocs(collection(alice.firestore(), "orders"))));
-await check("customer cannot list another customer's orders", assertFails(getDocs(query(collection(bob.firestore(), "orders"), where("userId", "==", "alice")))));
-await check("customer cannot change their order (e.g. total or status)", assertFails(updateDoc(doc(alice.firestore(), "orders/alice-order"), { total: 1 })));
+await check("customer cannot change their order (e.g. total or status)", assertFails(updateDoc(doc(alice.firestore(), "orders/old-order"), { total: 1 })));
 await check("admin can read any order", assertSucceeds(getDoc(doc(admin.firestore(), "orders/guest-order"))));
 await check("admin can list orders", assertSucceeds(getDocs(collection(admin.firestore(), "orders"))));
 await check("admin claim without a verified email is not admin", assertFails(getDocs(collection(unverifiedAdmin.firestore(), "orders"))));
 
-console.log("\nProfiles");
-await check("customer can read their own profile", assertSucceeds(getDoc(doc(alice.firestore(), "users/alice"))));
-await check("customer cannot read another profile", assertFails(getDoc(doc(alice.firestore(), "users/bob"))));
+console.log("\nOld customer profiles (no longer used)");
+await check("nobody can read a profile from a browser", assertFails(getDoc(doc(alice.firestore(), "users/alice"))));
+await check("nobody can write a profile from a browser", assertFails(updateDoc(doc(alice.firestore(), "users/alice"), { admin: true })));
 await check("guest cannot read a profile", assertFails(getDoc(doc(guest.firestore(), "users/alice"))));
-await check("customer can update their own contact details", assertSucceeds(updateDoc(doc(alice.firestore(), "users/alice"), { name: "Alice A", phone: "+998901112233" })));
-await check("customer cannot add an admin/role field to their profile", assertFails(updateDoc(doc(alice.firestore(), "users/alice"), { admin: true })));
-await check("customer cannot change their stored email", assertFails(updateDoc(doc(alice.firestore(), "users/alice"), { email: "evil@example.com" })));
-await check("customer cannot edit another profile", assertFails(updateDoc(doc(alice.firestore(), "users/bob"), { name: "Hacked" })));
-await check("oversized profile fields are rejected", assertFails(updateDoc(doc(alice.firestore(), "users/alice"), { name: "x".repeat(81) })));
-await check("customer cannot delete a profile", assertFails(deleteDoc(doc(alice.firestore(), "users/alice"))));
 
 console.log("\nSettings, audit log, rate limits");
 await check("guest cannot read settings (owner email)", assertFails(getDoc(doc(guest.firestore(), "settings/store"))));

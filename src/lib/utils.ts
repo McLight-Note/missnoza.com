@@ -79,14 +79,6 @@ export function formatDate(ms: number) {
   return `${p.day}-${p.month}, ${p.year}`;
 }
 
-/** Only allow redirects to paths on this site (prevents open redirects). */
-export function safeNextPath(next: string | null | undefined, fallback = "/account") {
-  if (!next || typeof next !== "string") return fallback;
-  if (!next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return fallback;
-  if (next.length > 200) return fallback;
-  return next;
-}
-
 export function maskPhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 4) return "•••";

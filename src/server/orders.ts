@@ -47,7 +47,7 @@ function newReference() {
  *  - each line stores the price charged, so later price edits never rewrite
  *    past orders.
  */
-export async function createOrder(input: ValidCheckout, userId: string | null): Promise<CreateOrderResult> {
+export async function createOrder(input: ValidCheckout): Promise<CreateOrderResult> {
   const db = adminDb();
   const orderRef = db.collection("orders").doc(input.idempotencyKey);
   const settingsRef = db.collection("settings").doc("store");
@@ -166,14 +166,14 @@ export async function createOrder(input: ValidCheckout, userId: string | null): 
       deliveryFee,
       total,
       currency: siteConfig.currency.code,
-      customer: { name: input.name, phone: input.phone, email: input.email || null },
+      customer: { name: input.name, phone: input.phone, telegram: input.telegram || null },
       delivery: { areaId: area.id, areaName: area.name, address: input.address },
       notes: input.notes,
-      userId,
       stockReleased: false,
       emails: {
         owner: pending,
-        customer: input.email ? pending : { ...pending, status: "skipped" },
+        // Customers do not leave an email address, so there is no customer email.
+        customer: { ...pending, status: "skipped" },
       },
       internalNotes: [],
       history: [{ status: "new", at: now, byEmail: null }],
@@ -211,15 +211,4 @@ export async function getOrderConfirmation(id: string): Promise<OrderConfirmatio
     phoneMasked: maskPhone(order.customer.phone),
     areaName: order.delivery.areaName,
   };
-}
-
-/** Orders placed while signed in to this account (never anyone else's). */
-export async function getOrdersForUser(uid: string): Promise<Order[]> {
-  const snap = await adminDb()
-    .collection("orders")
-    .where("userId", "==", uid)
-    .orderBy("createdAt", "desc")
-    .limit(50)
-    .get();
-  return snap.docs.map(mapOrder);
 }

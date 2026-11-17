@@ -3,7 +3,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { Menu, Search, ShoppingBag, X } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { cartCount, useCart } from "@/lib/cart";
 import type { Category } from "@/lib/types";
@@ -105,14 +105,6 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
         </div>
 
         <div className="ml-auto flex items-center md:ml-2">
-          <Link
-            href="/account"
-            className="flex size-11 items-center justify-center rounded-full text-ink hover:bg-sand"
-            aria-label="Shaxsiy kabinet"
-            onClick={close}
-          >
-            <User className="size-5" aria-hidden="true" />
-          </Link>
           <CartLink />
         </div>
       </div>

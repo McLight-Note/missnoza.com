@@ -163,10 +163,10 @@ export type Order = {
   deliveryFee: number;
   total: number;
   currency: string;
-  customer: { name: string; phone: string; email: string | null };
+  /** `email` exists only on older orders; `telegram` is a username without "@". */
+  customer: { name: string; phone: string; telegram: string | null; email: string | null };
   delivery: { areaId: string; areaName: string; address: string };
   notes: string;
-  userId: string | null;
   /** True once a cancelled order's stock has been returned to inventory. */
   stockReleased: boolean;
   emails: { owner: EmailState; customer: EmailState };
@@ -184,15 +184,6 @@ export type OrderConfirmation = Pick<
   customerFirstName: string;
   phoneMasked: string;
   areaName: string;
-};
-
-export type CustomerProfile = {
-  uid: string;
-  email: string | null;
-  name: string;
-  phone: string;
-  address: string;
-  areaId: string;
 };
 
 export type AuditEntry = {

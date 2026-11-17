@@ -64,6 +64,7 @@ export async function listOrders(filters: OrderFilters): Promise<{ orders: Order
       (o) =>
         o.reference.toLowerCase().includes(needle) ||
         o.customer.name.toLowerCase().includes(needle) ||
+        (o.customer.telegram ?? "").toLowerCase().includes(needle.replace(/^@/, "")) ||
         (o.customer.email ?? "").toLowerCase().includes(needle) ||
         (digits.length >= 3 && o.customer.phone.replace(/\D/g, "").includes(digits)),
     );

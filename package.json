@@ -9,7 +9,6 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "seed": "node scripts/seed.mjs",
-    "admin:grant": "node scripts/admin.mjs grant",
     "admin:revoke": "node scripts/admin.mjs revoke",
     "admin:list": "node scripts/admin.mjs list",
     "emulators": "npx -y firebase-tools emulators:start --project demo-missnoza --import=.emulator-data --export-on-exit=.emulator-data",

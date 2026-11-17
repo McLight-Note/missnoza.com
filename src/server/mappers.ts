@@ -144,11 +144,11 @@ export function mapOrder(snap: DocumentSnapshot): Order {
     customer: {
       name: str(customer.name),
       phone: str(customer.phone),
+      telegram: typeof customer.telegram === "string" && customer.telegram ? customer.telegram : null,
       email: typeof customer.email === "string" && customer.email ? customer.email : null,
     },
     delivery: { areaId: str(delivery.areaId), areaName: str(delivery.areaName), address: str(delivery.address) },
     notes: str(d.notes),
-    userId: typeof d.userId === "string" ? d.userId : null,
     stockReleased: d.stockReleased === true,
     emails: { owner: mapEmailState(emails.owner), customer: mapEmailState(emails.customer) },
     internalNotes: arr(d.internalNotes).map((raw) => {

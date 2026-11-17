@@ -2,12 +2,10 @@
 
 import { updateTag } from "next/cache";
 import { after } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { cartLinesSchema, checkoutSchema, fieldErrorsOf, profileSchema, type CheckoutInput } from "@/lib/validation";
-import { getSession } from "@/server/auth";
+import { cartLinesSchema, checkoutSchema, fieldErrorsOf, type CheckoutInput } from "@/lib/validation";
 import { CATALOG_TAG, SETTINGS_TAG, getCatalog, getPublicSettings } from "@/server/catalog";
 import { sendOrderEmails } from "@/server/email";
-import { adminDb, isAdminConfigured } from "@/server/firebase-admin";
+import { isAdminConfigured } from "@/server/firebase-admin";
 import { createOrder, type CartIssue } from "@/server/orders";
 import { clientIp, rateLimit, retryMessage, sweepExpired } from "@/server/rate-limit";
 import type { ActionResult, DeliveryArea } from "@/lib/types";
@@ -135,8 +133,7 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
       return { ok: false, code: "RATE_LIMITED", error: retryMessage(blocked.retryAfterSeconds) };
     }
 
-    const session = await getSession();
-    const result = await createOrder(parsed.data, session?.uid ?? null);
+    const result = await createOrder(parsed.data);
 
     if (!result.ok) {
       // What the customer saw was out of date: refresh it for everyone.
@@ -171,21 +168,10 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
     if (!result.duplicate) {
       if (result.stockRunningLow) updateTag(CATALOG_TAG);
       const { orderId } = result;
-      const data = parsed.data;
       // Runs after the response is sent, so slow email never delays the customer.
       after(async () => {
         await sendOrderEmails(orderId).catch((error) => console.error("[order] email step failed", error));
         await sweepExpired();
-        if (session) {
-          await adminDb()
-            .collection("users")
-            .doc(session.uid)
-            .set(
-              { name: data.name, phone: data.phone, address: data.address, areaId: data.areaId, updatedAt: FieldValue.serverTimestamp() },
-              { merge: true },
-            )
-            .catch((error) => console.error("[order] profile save failed", error));
-        }
       });
     }
     return { ok: true, orderId: result.orderId, reference: result.reference };
@@ -195,25 +181,5 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
       ok: false,
       error: "Xatolik yuz berdi, buyurtma qabul qilinmadi. Qayta urinib koʻring — buyurtma ikki marta yozilmaydi.",
     };
-  }
-}
-
-export async function updateProfile(input: unknown): Promise<ActionResult> {
-  const session = await getSession();
-  if (!session) return { ok: false, code: "UNAUTHENTICATED", error: "Iltimos, qaytadan kiring." };
-  const parsed = profileSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: "Belgilangan maydonlarni tekshiring.", fieldErrors: fieldErrorsOf(parsed.error) };
-  }
-  try {
-    // The document ID comes from the verified session, never from the form.
-    await adminDb()
-      .collection("users")
-      .doc(session.uid)
-      .set({ ...parsed.data, email: session.email, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    return { ok: true, data: null };
-  } catch (error) {
-    console.error("[account] updateProfile failed", error);
-    return { ok: false, error: "Maʼlumotlarni saqlab boʻlmadi. Qayta urinib koʻring." };
   }
 }

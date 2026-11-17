@@ -13,6 +13,7 @@ import { orderIdSchema } from "@/lib/validation";
 import { getOrder } from "@/server/admin/data";
 import { requireAdminPage } from "@/server/auth";
 import { adminHref } from "@/lib/admin-path";
+import { telegramUrl } from "@/lib/telegram";
 
 export const metadata: Metadata = { title: "Buyurtma" };
 
@@ -176,6 +177,18 @@ async function OrderDetail({ params }: Pick<PageProps<"/admin/orders/[id]">, "pa
                 {formatPhone(order.customer.phone)}
               </a>
             </p>
+            {order.customer.telegram && (
+              <p>
+                <a
+                  href={telegramUrl(order.customer.telegram)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-brand-700 underline-offset-4 hover:underline"
+                >
+                  Telegram: @{order.customer.telegram}
+                </a>
+              </p>
+            )}
             {order.customer.email && (
               <p>
                 <a href={`mailto:${order.customer.email}`} className="break-all text-brand-700 underline-offset-4 hover:underline">
@@ -183,7 +196,6 @@ async function OrderDetail({ params }: Pick<PageProps<"/admin/orders/[id]">, "pa
                 </a>
               </p>
             )}
-            <p className="text-xs text-muted">{order.userId ? "Hisob orqali berilgan" : "Roʻyxatdan oʻtmagan xaridor"}</p>
           </Card>
 
           <Card className="space-y-2 p-4 text-sm sm:p-5">
@@ -201,7 +213,8 @@ async function OrderDetail({ params }: Pick<PageProps<"/admin/orders/[id]">, "pa
           <Card className="space-y-3 p-4 sm:p-5">
             <h2 className="font-sans text-base font-bold">Xatlar</h2>
             <EmailLine label="Doʻkonga xabarnoma" state={order.emails.owner} />
-            <EmailLine label="Mijozga tasdiq xati" state={order.emails.customer} />
+            {/* Only older orders, placed when checkout still asked for an email, have one. */}
+            {order.customer.email && <EmailLine label="Mijozga tasdiq xati" state={order.emails.customer} />}
             <ResendEmailButton orderId={order.id} />
           </Card>
         </div>

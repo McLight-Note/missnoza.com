@@ -12,9 +12,8 @@ import { Card, EmptyState, Skeleton } from "@/components/ui/misc";
 import { siteConfig } from "@/config/site";
 import { cart, lineKey, useCart, useHydrated } from "@/lib/cart";
 import { deliveryFeeFor } from "@/lib/pricing";
+import { normalizeTelegram } from "@/lib/telegram";
 import { formatMoney } from "@/lib/utils";
-
-export type CheckoutDefaults = { name: string; phone: string; email: string; address: string; areaId: string; signedIn: boolean };
 
 const KEY_STORAGE = "missnoza.checkout.v1";
 
@@ -39,18 +38,18 @@ function idempotencyKeyFor(signature: string) {
   return key;
 }
 
-export function CheckoutForm({ defaults }: { defaults: CheckoutDefaults }) {
+export function CheckoutForm() {
   const router = useRouter();
   const hydrated = useHydrated();
   const lines = useCart();
   const { quote, fresh, loading, error: quoteError, refresh } = useCartQuote(lines);
 
   const [form, setForm] = useState({
-    name: defaults.name,
-    phone: defaults.phone,
-    email: defaults.email,
-    areaId: defaults.areaId,
-    address: defaults.address,
+    name: "",
+    phone: "",
+    telegram: "",
+    areaId: "",
+    address: "",
     notes: "",
     company: "",
   });
@@ -114,6 +113,7 @@ export function CheckoutForm({ defaults }: { defaults: CheckoutDefaults }) {
     const errors: Record<string, string> = {};
     if (form.name.trim().length < 2) errors.name = "Ism va familiyangizni kiriting.";
     if (form.phone.trim().length < 5) errors.phone = "Telefon raqamingizni kiriting.";
+    if (normalizeTelegram(form.telegram) === null) errors.telegram = "Telegram foydalanuvchi nomini kiriting, masalan: @miss_noza";
     if (!area) errors.areaId = "Yetkazib berish hududini tanlang.";
     if (form.address.trim().length < 5) errors.address = "Yetkazib berish manzilini kiriting.";
     setFieldErrors(errors);
@@ -132,7 +132,7 @@ export function CheckoutForm({ defaults }: { defaults: CheckoutDefaults }) {
           lines: lines.map((l) => ({ productId: l.productId, variantId: l.variantId, quantity: l.quantity })),
           name: form.name,
           phone: form.phone,
-          email: form.email,
+          telegram: form.telegram,
           areaId: form.areaId,
           address: form.address,
           notes: form.notes,
@@ -161,16 +161,6 @@ export function CheckoutForm({ defaults }: { defaults: CheckoutDefaults }) {
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-8 lg:grid-cols-[1fr_24rem] lg:items-start">
       <div className="space-y-6">
-        {!defaults.signedIn && (
-          <p className="text-sm text-muted">
-            Siz roʻyxatdan oʻtmasdan buyurtma beryapsiz.{" "}
-            <Link href="/sign-in?next=/checkout" className="font-medium text-brand-700 underline-offset-4 hover:underline">
-              Tizimga kirsangiz
-            </Link>{" "}
-            maʼlumotlaringiz saqlanadi va buyurtmalar tarixini koʻra olasiz (ixtiyoriy).
-          </p>
-        )}
-
         <Card className="space-y-4 p-5">
           <h2 className="font-sans text-lg font-semibold">Aloqa maʼlumotlari</h2>
           <Field id="checkout-name" label="Ism va familiya" error={fieldErrors.name}>
@@ -194,16 +184,23 @@ export function CheckoutForm({ defaults }: { defaults: CheckoutDefaults }) {
               onChange={set("phone")}
             />
           </Field>
-          <Field id="checkout-email" label="Email" optional hint="Faqat buyurtma tasdigʻini yuborish uchun ishlatiladi." error={fieldErrors.email}>
+          <Field
+            id="checkout-telegram"
+            label="Telegram"
+            optional
+            hint="Foydalanuvchi nomingiz, masalan: @miss_noza. Nomingiz boʻlmasa, telefon raqamingiz orqali topamiz."
+            error={fieldErrors.telegram}
+          >
             <Input
-              {...fieldAria("checkout-email", fieldErrors.email, true)}
-              name="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              maxLength={254}
-              value={form.email}
-              onChange={set("email")}
+              {...fieldAria("checkout-telegram", fieldErrors.telegram, true)}
+              name="telegram"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={100}
+              placeholder="@"
+              value={form.telegram}
+              onChange={set("telegram")}
             />
           </Field>
         </Card>
