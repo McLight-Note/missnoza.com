@@ -16,7 +16,10 @@
     "firebase:deploy": "npx -y firebase-tools deploy --only firestore:rules,firestore:indexes",
     "admin:create": "node scripts/admin.mjs create",
     "telegram:chat-ids": "node scripts/telegram.mjs chat-ids",
-    "telegram:test": "node scripts/telegram.mjs test"
+    "telegram:test": "node scripts/telegram.mjs test",
+    "telegram:webhook:set": "node scripts/telegram.mjs set-webhook",
+    "telegram:webhook:info": "node scripts/telegram.mjs webhook-info",
+    "telegram:webhook:delete": "node scripts/telegram.mjs delete-webhook"
   },
   "dependencies": {
     "clsx": "^2.1.1",

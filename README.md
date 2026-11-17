@@ -35,7 +35,7 @@ Until you save it, the page shows placeholders (for example `+998 00 000 00 00`)
 3. [Create the Firebase project](#3-create-the-firebase-project)
 4. [Environment variables](#4-environment-variables)
 5. [Set up email (Resend)](#5-set-up-email-resend)
-   - [Telegram notifications for new orders](#5b-telegram-notifications-for-new-orders)
+   - [Telegram notifications and admin bot](#5b-telegram-notifications-and-admin-bot)
 6. [Create the first admin](#6-create-the-first-admin)
 7. [Deploy to Vercel](#7-deploy-to-vercel)
 8. [Phone numbers: allowed regions and testing](#8-phone-numbers-allowed-regions-and-testing)
@@ -157,6 +157,11 @@ Copy `.env.example` to `.env.local` for local work, and add the same names in Ve
 | `EMAIL_FROM` | no | Sender, e.g. `Miss Noza <orders@missnoza.com>`. The domain must be verified in Resend. |
 | `ORDER_NOTIFICATION_EMAIL` | no | Where new-order emails go. Can be overridden in Admin → Sozlamalar. |
 | `RATE_LIMIT_SALT` | yes | Optional. Any long random text; used when hashing IP addresses for rate limiting. |
+| `TELEGRAM_BOT_TOKEN` | **yes** | Optional. Bot token from @BotFather (section 5b). |
+| `TELEGRAM_ADMIN_CHAT_IDS` | no | Chats that get order messages and may use the bot, comma-separated. |
+| `TELEGRAM_WEBHOOK_SECRET` | **yes** | Random string Telegram sends with every webhook request (bot buttons and commands). |
+| `TELEGRAM_OMIT_FIELDS` | no | Optional. Customer details to leave out of Telegram messages. |
+| `CRON_SECRET` | **yes** | Random string protecting the daily Telegram retry job. |
 
 Only variables starting with `NEXT_PUBLIC_` reach the browser. The service-account key and the Resend key are read by server code only (the server modules are marked `server-only`, so the build fails if browser code ever imports them).
 
@@ -178,26 +183,133 @@ If an email fails, **the order is never lost**. The failure is stored on the ord
 
 To use a different provider, replace the body of `sendEmail` in [src/server/email.ts](src/server/email.ts); nothing else talks to the provider.
 
-## 5b. Telegram notifications for new orders
+## 5b. Telegram notifications and admin bot
 
-Every new order can also be sent as a Telegram message to you and other admins. Optional; free.
+Optional and free. Every new order arrives as a Telegram message for you and other admins, with buttons to confirm, mark as shipped or cancel it. Commands show recent orders and sales. Everything is in Uzbek, like the rest of the site.
 
-1. In Telegram, open **@BotFather**, send `/newbot`, choose a name and a username ending in `bot`. Put the token it gives you in `TELEGRAM_BOT_TOKEN` in `.env.local`. Never paste it anywhere else.
-2. **Every admin opens your bot and presses Start.** A bot cannot message someone who has not done this. For a group: add the bot to the group and send `/start@your_bot` there.
-3. Run `npm run telegram:chat-ids`. Copy the IDs of the admins (or the group, which starts with `-`) into `TELEGRAM_ADMIN_CHAT_IDS`, comma-separated.
-4. Run `npm run telegram:test`: each chat should receive a test message.
-5. Set `CRON_SECRET` to a random string (`openssl rand -hex 32`).
-6. On Vercel, add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_IDS`, `CRON_SECRET` (and optionally `TELEGRAM_OMIT_FIELDS`), then redeploy.
+### How it fits together
 
-The message contains the order number, items, totals, customer name, phone, Telegram username, delivery area and address, the note, and a link to the order in the admin. To leave details out, set e.g. `TELEGRAM_OMIT_FIELDS=address,notes` (allowed: `name,phone,telegram,address,notes`). Telegram stores these messages on its servers and shows them in phone notifications.
+```
+Customer places order ──► placeOrder (server action)
+                          │  one Firestore transaction: order + telegramAlert outbox
+                          └─ after the response ──► sendOrderTelegram ──► Telegram ──► admins' chats
+                                                       ▲
+              daily Vercel Cron /api/cron/telegram ────┘  (retries anything that failed)
 
-How delivery works ([src/server/telegram.ts](src/server/telegram.ts)):
+Admin presses ✅ / 🚚 / 📦 / ❌ or types /orders ──► Telegram ──► POST /api/telegram/webhook
+     (checks the secret header and that the chat is an admin chat)
+     ──► same status change as the admin panel (stock, history, activity log)
+     ──► every admin's copy of the message is edited to show the new status
+```
 
-- The order and a `telegramAlert` record (`pending`) are saved together. Right after checkout the server sends the message; the record becomes `sent` only after Telegram confirms every chat.
-- If sending fails, the record is `failed` with the reason. The dashboard shows "Telegramga yetib bormagan buyurtmalar", the order page shows the status and a **Telegramga qayta yuborish** button, and a retry only goes to chats that did not receive it yet.
-- A daily Vercel Cron job ([vercel.json](vercel.json), 04:00 UTC) retries notifications that failed or never finished, up to 5 automatic attempts per order. On the Hobby plan Vercel allows cron jobs at most once a day; on Pro you can change the schedule to e.g. `*/5 * * * *`.
-- Delivery is *at least once*: in rare cases (the server stops right after Telegram accepted a message) a message can arrive twice. An order never goes missing because of Telegram: checkout does not depend on it.
-- Orders placed before this was set up are not sent automatically; use the button on the order page if you want them.
+- **Why not a Cloud Function?** A Firestore-triggered Cloud Function would also work, but needs Firebase's paid *Blaze* plan. This shop stays on the free plan, so the website itself sends the message right after saving the order, and a daily retry job catches anything that failed.
+- **No duplicates, nothing lost:** the order and its `telegramAlert` record are written together, so an order can never exist without one. Before sending, the server *claims* the record in a transaction, so two attempts never send at the same time. Each chat that Telegram confirms is recorded right away (`deliveredTo`, `messageIds`), so a retry only goes to chats that are still missing it. After 3 quick tries (with growing waits, and honouring Telegram's `retry_after` on 429) the reason is stored in `telegramAlert.error`, shown on the dashboard and on the order page (**Telegramga qayta yuborish** button), and retried by the cron job up to 5 times. One rare case can still send twice: the server stops just after Telegram accepted a message. A duplicate is preferred over a lost order.
+- **Buttons are safe to press twice:** pressing the same button again changes nothing, and an outdated button (e.g. 🚚 on an order that was cancelled meanwhile) is refused. ❌ asks "Ha, bekor qilinsin / Yoʻq" first, because cancelling returns the items to stock.
+- **Changing the status in the admin panel** also updates the Telegram messages.
+
+Code: [src/server/telegram.ts](src/server/telegram.ts) (message, buttons, sending, retries), [src/server/telegram-bot.ts](src/server/telegram-bot.ts) (commands and buttons), [src/app/api/telegram/webhook/route.ts](src/app/api/telegram/webhook/route.ts), [scripts/telegram.mjs](scripts/telegram.mjs) (setup helpers).
+
+### Step 1 — Create the bot (2 minutes)
+
+1. In Telegram, search for **@BotFather** (blue tick) and open it.
+2. Send `/newbot`. Give it a name (e.g. *Miss Noza buyurtmalar*), then a username that ends in `bot` (e.g. `missnoza_orders_bot`).
+3. BotFather replies with a **token** like `123456789:AAH…`. It is the bot's password: put it in `.env.local` as `TELEGRAM_BOT_TOKEN=…` and never paste it into a chat, a screenshot or the code. If it ever leaks, send `/revoke` to BotFather and update the variable everywhere.
+
+### Step 2 — Find the chat IDs of the admins
+
+A bot can only message people who have opened it and pressed **Start**.
+
+- **You and each other admin:** open the bot (t.me/your_bot_username) and press **Start**.
+- **Or a group:** create a group, add the bot, and send `/start@your_bot_username` in it. Everyone in that group will get the messages **and may press the buttons and use the commands**. Only add people you trust.
+
+Then run `npm run telegram:chat-ids`. It lists everyone who pressed Start, with their IDs; group IDs start with `-100…`. Put the IDs you want into `.env.local`, comma-separated:
+
+```
+TELEGRAM_ADMIN_CHAT_IDS=111111111,-1002222222222
+```
+
+Run `npm run telegram:test`: each chat should get a test message.
+
+Once the webhook is set up (step 4), `chat-ids` stops working, because Telegram then delivers messages to the website instead. From then on, anyone who sends `/start` to the bot is told their chat ID, and admins see it too. To **add an admin later:** they press Start, send `/start` and tell you the number. Add it to `TELEGRAM_ADMIN_CHAT_IDS` on Vercel and redeploy. To remove someone, delete their ID and redeploy.
+
+### Step 3 — Secrets
+
+Create two random strings (run each line once and copy the output):
+
+```bash
+openssl rand -hex 32   # → TELEGRAM_WEBHOOK_SECRET
+openssl rand -hex 32   # → CRON_SECRET
+```
+
+`TELEGRAM_WEBHOOK_SECRET` proves to the website that a request really comes from Telegram. `CRON_SECRET` protects the daily retry job. Put both in `.env.local`.
+
+### Step 4 — Vercel and the webhook
+
+1. Vercel → your project → **Settings → Environment Variables**. Add these for *Production*: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_IDS`, `TELEGRAM_WEBHOOK_SECRET`, `CRON_SECRET`, and optionally `TELEGRAM_OMIT_FIELDS`. Mark the first, third and fourth as *Sensitive*. The Firebase service-account values (`FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`) are already there from section 7; the bot uses the same ones. Never prefix any of them with `NEXT_PUBLIC_`.
+2. **Deployments →** ⋯ on the latest one **→ Redeploy**. New variables only apply to new deployments.
+3. On your computer, with the same `TELEGRAM_WEBHOOK_SECRET` and `NEXT_PUBLIC_SITE_URL=https://your-domain` in `.env.local`, run:
+
+   ```bash
+   npm run telegram:webhook:set
+   ```
+
+   This tells Telegram to send button presses and commands to `https://your-domain/api/telegram/webhook`, and fills the bot's command menu. To use another address (e.g. a Vercel preview), pass it explicitly: `npm run telegram:webhook:set -- https://something.vercel.app`.
+
+   The same thing with `curl`, if you prefer (replace the three values):
+
+   ```bash
+   curl -s "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+     -H "Content-Type: application/json" \
+     -d '{"url":"https://your-domain/api/telegram/webhook","secret_token":"<TELEGRAM_WEBHOOK_SECRET>","allowed_updates":["message","callback_query"],"drop_pending_updates":true}'
+   ```
+
+4. Send `/start` to the bot. It should answer within a second or two. `npm run telegram:webhook:info` shows whether Telegram can reach the site, and the last error if not.
+
+### What the bot can do
+
+| | |
+| --- | --- |
+| New order message | Order number, time (shop time zone, `src/config/site.ts`), status, items × quantity with prices, subtotal, delivery, total, payment (on delivery), customer name, phone, Telegram username, area and address, note. Buttons: ✅ Tasdiqlash · 🚚 Joʻnatildi · ❌ Bekor qilish · 🔗 Admin panelda ochish (later 📦 Yetkazildi). Customer text is escaped, and very long orders are shortened to stay under Telegram's 4096-character limit. |
+| `/start` | Greeting, your chat ID, the command list |
+| `/orders` | The latest 10 orders with status; tap `/order_MN…` under one to open it |
+| `/order MN-ABCD-EFGH` | One order with its buttons |
+| `/today` | Today's orders, revenue (cancelled orders not counted) and count per status |
+| `/stats` | The same for the last 7 days and this month |
+
+To leave details out of the messages, set e.g. `TELEGRAM_OMIT_FIELDS=address,notes` (allowed: `name,phone,telegram,address,notes`). Telegram stores these messages on its servers and shows them in phone notifications.
+
+### Testing checklist
+
+- [ ] Place a test order on the live site: the message arrives in every admin chat within a few seconds, with buttons.
+- [ ] Press ✅: the message changes to "✅ Holat: Tasdiqlangan · Telegram: @you" in **every** admin chat; the admin order page shows the new status with "Telegram: @you" in the history; *Amallar tarixi* has an entry.
+- [ ] Press ❌, then *Yoʻq*: nothing changes. Press ❌, then *Ha*: the order is cancelled and its stock is back.
+- [ ] Change a status in the admin panel: the Telegram message follows.
+- [ ] From a Telegram account that is **not** an admin, send `/orders` to the bot: it politely refuses. `/start` only shows that person their own chat ID.
+- [ ] Duplicate trigger: on the admin order page the Telegram status says *sent*. The re-send button refuses because it was already sent, and the cron job skips it.
+- [ ] `/orders`, `/today`, `/order <number>`, `/stats` answer.
+- [ ] Vercel → project → **Logs**: filter for `[telegram`. You should see `order notification sent`, `status changed` and no errors.
+- [ ] Firebase console → Firestore → `orders` → the order: `telegramAlert.status` is `sent`, and `deliveredTo` and `messageIds` list each chat.
+
+### Troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| Bot does not answer commands or buttons | `npm run telegram:webhook:info`. **401** → the `TELEGRAM_WEBHOOK_SECRET` on Vercel is not the one you set the webhook with (fix it, redeploy, run `telegram:webhook:set` again). **503** → a `TELEGRAM_*` or `FIREBASE_*` variable is missing on Vercel (Logs say which). **404** / wrong URL → the latest code is not deployed, or `NEXT_PUBLIC_SITE_URL` is wrong. No URL at all → run `telegram:webhook:set`. |
+| Bot says "ruxsatingiz yoʻq" to you | Your chat ID (shown by `/start`) is not in `TELEGRAM_ADMIN_CHAT_IDS` on Vercel, or you did not redeploy after adding it. In a group, the *group's* ID must be listed. |
+| Telegram 401 Unauthorized | The bot token is wrong or was revoked: copy it again from BotFather (`/mybots` → API Token). |
+| Telegram 403 / "bot was blocked" / "chat not found" | That person never pressed Start, or blocked the bot, or the bot was removed from the group. |
+| "Guruh yangi ID oldi" (group got a new ID) | The group was upgraded to a supergroup; use the new `-100…` ID shown in the error. |
+| No new-order messages | Admin dashboard → "Telegramga yetib bormagan buyurtmalar" shows the reason. `npm run telegram:test` locally checks the token and chat IDs. |
+| "Firebase Admin is not configured", "invalid_grant" or "permission denied" in Logs | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` or `FIREBASE_PRIVATE_KEY` is missing or pasted wrongly on Vercel (section 7). Firestore security rules do **not** matter here: the server uses the Admin SDK, which bypasses them. |
+| `chat-ids` says a webhook is set | Expected after step 4: send `/start` to the bot instead. |
+
+### Ideas for later
+
+- **Daily summary:** a second Vercel Cron entry that sends `/today`'s text every evening.
+- **Low-stock alert:** after an order with `stockRunningLow` (already computed in `createOrder`), send a short message listing the products running out.
+- **Cancellation notices:** call `sendTelegramMessage` when an order is cancelled from the panel, in addition to editing the original message.
+- **Another language:** the bot's texts are in `src/server/telegram.ts` and `src/server/telegram-bot.ts`.
+- **Faster retries:** on Vercel Pro, run the cron job every few minutes (`*/5 * * * *` in `vercel.json`).
 
 ---
 
@@ -343,6 +455,7 @@ Tested locally with a production build against the Firebase emulators and a mock
 - Signed-out visitors, wrong passwords and non-admin accounts cannot open any admin page; repeated wrong passwords are rate limited; signing out and revoking admin end the session at once.
 - Admin: dashboard figures and date filter, order search and filters, status changes, internal notes, stock return on cancel, product create/edit/hide/delete with photo upload (a 13 MB test photo was shrunk, stored and served correctly), option (shade) editing, stale-edit protection, settings, categories, activity log.
 - Phone and desktop layouts (no sideways scrolling on a 390 px screen).
+- Telegram admin bot (against the emulators and a mock Telegram API): the order message carries the right buttons and escapes customer text; requests without the webhook secret get 401; every button (confirm, ask-cancel, keep, cancel with stock return, an outdated button after cancel, the same button twice, a forged button) and every command (`/start`, `/orders`, `/today`, `/stats`, `/order` by number, by shortcut, unknown number) behave as described; both admin chats' messages are updated; chats not in the list are refused. Not checked: the admin panel → Telegram message update, and real Telegram.
 - `npm run test:rules`: 38 security-rule tests covering what a browser can and cannot do directly against the database.
 
 **Not checked** (needs your accounts): a live Firebase project and its real free-plan limits, real email delivery through Resend, the Vercel deployment, your DNS, and behaviour under real traffic.
@@ -363,4 +476,5 @@ Tested locally with a production build against the Firebase emulators and a mock
 - [ ] Uzbek wording read through and adjusted where needed
 - [ ] Privacy page text replaced with your own
 - [ ] Logo, hero image and icon replaced
+- [ ] Telegram (optional): bot created, webhook set, and the testing checklist in section 5b done
 - [ ] One full test order placed on a phone on the live site, then cancelled in the admin

@@ -7,7 +7,7 @@ import { formatPhone } from "@/lib/phone";
 import { formatDateTime, formatMoney } from "@/lib/utils";
 import { adminDb } from "@/server/firebase-admin";
 import { mapOrder } from "@/server/mappers";
-import type { Order, TelegramAlertStatus } from "@/lib/types";
+import { ORDER_STATUS_LABELS, type Order, type OrderStatus, type TelegramAlertStatus } from "@/lib/types";
 
 /**
  * "New order" notifications to the shop admins' Telegram chats.
@@ -28,6 +28,11 @@ import type { Order, TelegramAlertStatus } from "@/lib/types";
  * Telegram accepted a message but before `deliveredTo` was saved, the next
  * attempt sends that message again. Nothing here is triggered by database
  * writes, so state updates can never cause another notification.
+ *
+ * The message carries status buttons (✅ / 🚚 / 📦 / ❌). Pressing one reaches
+ * the bot's webhook (src/app/api/telegram/webhook/route.ts →
+ * src/server/telegram-bot.ts), which changes the order's status and calls
+ * `refreshOrderMessages` to update every admin's copy of the message.
  *
  * The bot token is read on the server only and never logged or stored.
  */
@@ -85,6 +90,27 @@ export function isTelegramConfigured() {
   return telegramConfig().ok;
 }
 
+/** Telegram allows 1-256 of these characters; we require at least 16. */
+const WEBHOOK_SECRET_PATTERN = /^[A-Za-z0-9_-]{16,256}$/;
+
+/**
+ * TELEGRAM_WEBHOOK_SECRET: Telegram sends it back in the
+ * X-Telegram-Bot-Api-Secret-Token header of every webhook request, which is
+ * how the webhook knows a request really comes from Telegram. Only the bot's
+ * buttons and commands need it; notifications work without it.
+ */
+export function telegramWebhookSecret(): { ok: true; secret: string } | { ok: false; error: string } {
+  const secret = (process.env.TELEGRAM_WEBHOOK_SECRET ?? "").trim();
+  if (!secret) return { ok: false, error: "TELEGRAM_WEBHOOK_SECRET koʻrsatilmagan." };
+  if (!WEBHOOK_SECRET_PATTERN.test(secret)) {
+    return {
+      ok: false,
+      error: "TELEGRAM_WEBHOOK_SECRET 16-256 belgidan iborat boʻlishi kerak (faqat A-Z, a-z, 0-9, _ va -).",
+    };
+  }
+  return { ok: true, secret };
+}
+
 // ───────── Message ─────────
 
 /** Telegram's limit for one message (characters after HTML is parsed). */
@@ -112,14 +138,48 @@ function clip(value: string, max: number) {
   return out;
 }
 
-/** Build the "Yangi buyurtma" message (HTML) for an order. */
+export const STATUS_EMOJI: Record<OrderStatus, string> = {
+  new: "🆕",
+  confirmed: "✅",
+  preparing: "🧴",
+  shipped: "🚚",
+  delivered: "📦",
+  cancelled: "❌",
+};
+
+/** "✅ Holat: Tasdiqlangan · Telegram: @ali, 17-noy, 2026, 14:05" */
+export function statusLine(order: Order) {
+  let line = `${STATUS_EMOJI[order.status]} Holat: <b>${esc(ORDER_STATUS_LABELS[order.status])}</b>`;
+  const last = order.history.at(-1);
+  if (order.status !== "new" && last && last.status === order.status) {
+    const details = [last.byEmail ? clip(last.byEmail, 80) : "", last.at ? esc(formatDateTime(last.at)) : ""];
+    const text = details.filter(Boolean).join(", ");
+    if (text) line += ` · ${text}`;
+  }
+  return line;
+}
+
+/** Customers pay on delivery; there is no online payment (see README). */
+const PAYMENT_LINE = "💵 Toʻlov: yetkazib berilganda";
+
+/** Link to the order in the admin panel. */
+export function orderAdminUrl(order: Pick<Order, "id">) {
+  return `${siteConfig.url}${adminHref(`/orders/${order.id}`)}`;
+}
+
+/** Build the order message (HTML) sent to the admins and kept up to date. */
 export function buildOrderMessage(order: Order, omit: ReadonlySet<OptionalField> = new Set()): string {
-  const head = `🛍 <b>Yangi buyurtma ${esc(order.reference)}</b>\n${esc(formatDateTime(order.createdAt || Date.now()))}`;
+  const head = [
+    `🛒 <b>${order.status === "new" ? "Yangi buyurtma" : "Buyurtma"} ${esc(order.reference)}</b>`,
+    esc(formatDateTime(order.createdAt || Date.now())),
+    statusLine(order),
+  ].join("\n");
 
   const totals = [
     `Mahsulotlar: ${esc(formatMoney(order.subtotal))}`,
     `Yetkazib berish: ${order.deliveryFee === 0 ? "Bepul" : esc(formatMoney(order.deliveryFee))}`,
     `<b>Jami: ${esc(formatMoney(order.total))}</b>`,
+    PAYMENT_LINE,
   ].join("\n");
 
   const contact: string[] = [];
@@ -131,12 +191,11 @@ export function buildOrderMessage(order: Order, omit: ReadonlySet<OptionalField>
   contact.push(`📍 ${area}${address}`);
   if (!omit.has("notes") && order.notes.trim()) contact.push(`💬 ${clip(order.notes, 1200)}`);
 
-  // Telegram rejects links it does not consider public, so only https URLs
-  // become a link; anything else (e.g. localhost while developing) is text.
-  const adminUrl = `${siteConfig.url}${adminHref(`/orders/${order.id}`)}`;
-  const link = adminUrl.startsWith("https://")
-    ? `<a href="${esc(adminUrl)}">Admin panelda ochish</a>`
-    : `Admin panel: ${esc(adminUrl)}`;
+  // Telegram only accepts public https links: those become the
+  // "Admin panelda ochish" button (orderKeyboard). Anything else (e.g.
+  // localhost while developing) is shown as plain text instead.
+  const adminUrl = orderAdminUrl(order);
+  const link = adminUrl.startsWith("https://") ? "" : `Admin panel: ${esc(adminUrl)}`;
 
   const fixed = [head, totals, contact.join("\n"), link];
   // Room for the items block, minus a line that says how many were left out.
@@ -157,6 +216,71 @@ export function buildOrderMessage(order: Order, omit: ReadonlySet<OptionalField>
   return [head, items.join("\n"), totals, contact.join("\n"), link].filter(Boolean).join("\n\n");
 }
 
+// ───────── Status buttons ─────────
+
+type InlineButton = { text: string; callback_data: string } | { text: string; url: string };
+export type InlineKeyboard = { inline_keyboard: InlineButton[][] };
+
+/**
+ * The statuses the message's buttons can set, and which current statuses
+ * each button is offered for. The webhook enforces the same `from` list, so
+ * pressing an old button (e.g. "Joʻnatildi" on an order cancelled meanwhile)
+ * is refused instead of silently re-opening the order.
+ */
+export const BUTTON_TRANSITIONS = {
+  confirmed: { label: "✅ Tasdiqlash", from: ["new"] },
+  shipped: { label: "🚚 Joʻnatildi", from: ["new", "confirmed", "preparing"] },
+  delivered: { label: "📦 Yetkazildi", from: ["shipped"] },
+  cancelled: { label: "❌ Bekor qilish", from: ["new", "confirmed", "preparing"] },
+} as const satisfies Partial<Record<OrderStatus, { label: string; from: readonly OrderStatus[] }>>;
+export type ButtonStatus = keyof typeof BUTTON_TRANSITIONS;
+
+/**
+ * Callback data (Telegram allows 64 bytes; order IDs are 36-character UUIDs):
+ *   s:<status>:<orderId>  set the status
+ *   x:<orderId>           ask "really cancel?"
+ *   k:<orderId>           keep the order (put the normal buttons back)
+ */
+export const callbackData = {
+  set: (status: ButtonStatus, orderId: string) => `s:${status}:${orderId}`,
+  askCancel: (orderId: string) => `x:${orderId}`,
+  keep: (orderId: string) => `k:${orderId}`,
+};
+
+const offered = (status: ButtonStatus, order: Order) =>
+  (BUTTON_TRANSITIONS[status].from as readonly OrderStatus[]).includes(order.status);
+
+function adminLinkRow(order: Order): InlineButton[][] {
+  // Telegram only accepts public https links in buttons.
+  const url = orderAdminUrl(order);
+  return url.startsWith("https://") ? [[{ text: "🔗 Admin panelda ochish", url }]] : [];
+}
+
+/** Buttons under an order message, depending on its current status. */
+export function orderKeyboard(order: Order): InlineKeyboard {
+  const rows: InlineButton[][] = [];
+  const main = (["confirmed", "shipped", "delivered"] as const)
+    .filter((status) => offered(status, order))
+    .map((status) => ({ text: BUTTON_TRANSITIONS[status].label, callback_data: callbackData.set(status, order.id) }));
+  if (main.length > 0) rows.push(main);
+  if (offered("cancelled", order)) {
+    rows.push([{ text: BUTTON_TRANSITIONS.cancelled.label, callback_data: callbackData.askCancel(order.id) }]);
+  }
+  return { inline_keyboard: [...rows, ...adminLinkRow(order)] };
+}
+
+/** Cancelling returns the items to stock, so it is confirmed first. */
+export function cancelConfirmKeyboard(order: Order): InlineKeyboard {
+  return {
+    inline_keyboard: [
+      [
+        { text: "Ha, bekor qilinsin", callback_data: callbackData.set("cancelled", order.id) },
+        { text: "Yoʻq, qoldirish", callback_data: callbackData.keep(order.id) },
+      ],
+    ],
+  };
+}
+
 // ───────── Telegram Bot API ─────────
 
 /**
@@ -171,16 +295,19 @@ function apiBase() {
 const REQUEST_TIMEOUT_MS = 10_000;
 /** Wait in place for a 429 only if Telegram asks for at most this long. */
 const MAX_INLINE_WAIT_SECONDS = 15;
-const MAX_REQUESTS_PER_CHAT = 3;
+const MAX_REQUESTS_PER_CALL = 3;
 
 type TelegramResponse = {
   ok?: boolean;
-  result?: { message_id?: number };
+  result?: unknown;
   error_code?: number;
   description?: string;
   parameters?: { retry_after?: number; migrate_to_chat_id?: number };
 };
 
+export type ApiResult<T> =
+  | { ok: true; result: T }
+  | { ok: false; error: string; code: number; retryAfterSeconds?: number };
 export type SendResult = { ok: true; messageId: number } | { ok: false; error: string; retryAfterSeconds?: number };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -192,36 +319,37 @@ const redact = (text: string, token: string) => (token ? text.split(token).join(
 export const maskChatId = (chatId: string) => `…${chatId.slice(-4)}`;
 
 /**
- * Send one message. Retries in place on network errors and 5xx (up to 3
- * requests), and once on 429 when `retry_after` is short. A timeout is
- * ambiguous: Telegram may have delivered the message, so a retry may
- * produce a duplicate (preferred over a missed order).
+ * Call one Bot API method. Retries with growing delays (1 s, 2 s) on network
+ * errors and 5xx (up to 3 requests), and once on 429 when `retry_after` is
+ * short. A timeout is ambiguous: Telegram may have acted on the request, so
+ * a retried sendMessage may produce a duplicate (preferred over a missed
+ * order). Errors never contain the token.
  */
-export async function sendTelegramMessage(token: string, chatId: string, html: string): Promise<SendResult> {
+export async function callTelegram<T = unknown>(
+  token: string,
+  method: string,
+  payload: Record<string, unknown>,
+): Promise<ApiResult<T>> {
   let waitedForRateLimit = false;
   for (let request = 1; ; request++) {
     let response: Response;
     try {
-      response = await fetch(`${apiBase()}/bot${token}/sendMessage`, {
+      response = await fetch(`${apiBase()}/bot${token}/${method}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: html,
-          parse_mode: "HTML",
-          link_preview_options: { is_disabled: true },
-        }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         cache: "no-store",
       });
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-      if (request < MAX_REQUESTS_PER_CHAT) {
+      if (request < MAX_REQUESTS_PER_CALL) {
         await sleep(request * 1000);
         continue;
       }
       return {
         ok: false,
+        code: 0,
         error: timedOut
           ? "Telegram javob bermadi (timeout); xabar yetib borgan boʻlishi ham mumkin."
           : "Telegram serveriga ulanib boʻlmadi.",
@@ -229,8 +357,7 @@ export async function sendTelegramMessage(token: string, chatId: string, html: s
     }
 
     const body = (await response.json().catch(() => null)) as TelegramResponse | null;
-    const messageId = body?.result?.message_id;
-    if (response.ok && body?.ok && typeof messageId === "number") return { ok: true, messageId };
+    if (response.ok && body?.ok) return { ok: true, result: body.result as T };
 
     const code = body?.error_code ?? response.status;
     const description = redact(String(body?.description ?? `HTTP ${response.status}`), token).slice(0, 200);
@@ -242,16 +369,78 @@ export async function sendTelegramMessage(token: string, chatId: string, html: s
         await sleep(retryAfter * 1000);
         continue;
       }
-      return { ok: false, error: `Telegram cheklovi (429): ${retryAfter} soniyadan keyin qayta urinish kerak.`, retryAfterSeconds: retryAfter };
+      return {
+        ok: false,
+        code,
+        error: `Telegram cheklovi (429): ${retryAfter} soniyadan keyin qayta urinish kerak.`,
+        retryAfterSeconds: retryAfter,
+      };
     }
-    if (code >= 500 && request < MAX_REQUESTS_PER_CHAT) {
+    if (code >= 500 && request < MAX_REQUESTS_PER_CALL) {
       await sleep(request * 1000);
       continue;
     }
     const migrated = body?.parameters?.migrate_to_chat_id;
     const hint = migrated ? ` Guruh yangi ID oldi (${migrated}): TELEGRAM_ADMIN_CHAT_IDS ni yangilang.` : "";
-    return { ok: false, error: `Telegram ${code}: ${description}.${hint}` };
+    return { ok: false, code, error: `Telegram ${code}: ${description}.${hint}` };
   }
+}
+
+/** Send one HTML message, optionally with buttons. */
+export async function sendTelegramMessage(
+  token: string,
+  chatId: string,
+  html: string,
+  replyMarkup?: InlineKeyboard,
+): Promise<SendResult> {
+  const result = await callTelegram<{ message_id?: number }>(token, "sendMessage", {
+    chat_id: chatId,
+    text: html,
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
+    ...(replyMarkup && replyMarkup.inline_keyboard.length > 0 ? { reply_markup: replyMarkup } : {}),
+  });
+  if (!result.ok) return { ok: false, error: result.error, retryAfterSeconds: result.retryAfterSeconds };
+  const messageId = result.result?.message_id;
+  if (typeof messageId !== "number") return { ok: false, error: "Telegram javobida message_id yoʻq." };
+  return { ok: true, messageId };
+}
+
+/** Telegram answers 400 "message is not modified" when nothing changed: that is fine. */
+const notModified = (result: ApiResult<unknown>) => !result.ok && /message is not modified/i.test(result.error);
+
+/** Replace a message's text and buttons (an empty keyboard removes the buttons). */
+export async function editTelegramMessage(
+  token: string,
+  chatId: string,
+  messageId: number,
+  html: string,
+  replyMarkup: InlineKeyboard,
+): Promise<ApiResult<unknown>> {
+  const result = await callTelegram(token, "editMessageText", {
+    chat_id: chatId,
+    message_id: messageId,
+    text: html,
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
+    reply_markup: replyMarkup,
+  });
+  return notModified(result) ? { ok: true, result: null } : result;
+}
+
+/** Replace only a message's buttons. */
+export async function editTelegramKeyboard(
+  token: string,
+  chatId: string,
+  messageId: number,
+  replyMarkup: InlineKeyboard,
+): Promise<ApiResult<unknown>> {
+  const result = await callTelegram(token, "editMessageReplyMarkup", {
+    chat_id: chatId,
+    message_id: messageId,
+    reply_markup: replyMarkup,
+  });
+  return notModified(result) ? { ok: true, result: null } : result;
 }
 
 // ───────── Outbox: claim → send → finish ─────────
@@ -397,13 +586,14 @@ export async function sendOrderTelegram(orderId: string, { manual = false } = {}
 
   const { order } = claimed;
   const text = buildOrderMessage(order, config.omit);
+  const keyboard = orderKeyboard(order);
   const alreadyDelivered = new Set(order.telegramAlert.deliveredTo);
   const failures = new Map<string, string>();
   let retryAfterSeconds = 0;
 
   for (const chatId of config.chatIds) {
     if (alreadyDelivered.has(chatId)) continue;
-    const result = await sendTelegramMessage(config.token, chatId, text);
+    const result = await sendTelegramMessage(config.token, chatId, text, keyboard);
     if (result.ok) {
       try {
         // Saved per chat, so a later retry skips the chats that already have it.
@@ -475,4 +665,47 @@ export async function sweepTelegramAlerts({ limit = 25, budgetMs = 40_000 } = {}
     }
   }
   return result;
+}
+
+// ───────── Keeping sent messages up to date ─────────
+
+/**
+ * Re-render every admin's copy of an order's message (text and buttons)
+ * after its status changed, from the bot or from the admin panel. Only chats
+ * still listed in TELEGRAM_ADMIN_CHAT_IDS are edited. `skip` is a message
+ * the caller has already edited. Best effort: failures are logged, never
+ * thrown, and never change the order.
+ */
+export async function refreshOrderMessages(
+  orderId: string,
+  { skip }: { skip?: { chatId: string; messageId: number } } = {},
+): Promise<void> {
+  const config = telegramConfig();
+  if (!config.ok) return;
+  try {
+    const snap = await adminDb().collection("orders").doc(orderId).get();
+    if (!snap.exists) return;
+    const order = mapOrder(snap);
+    const targets = Object.entries(order.telegramAlert.messageIds).filter(
+      ([chatId, messageId]) =>
+        config.chatIds.includes(chatId) && !(skip && skip.chatId === chatId && skip.messageId === messageId),
+    );
+    if (targets.length === 0) return;
+    const text = buildOrderMessage(order, config.omit);
+    const keyboard = orderKeyboard(order);
+    const results = await Promise.all(
+      targets.map(([chatId, messageId]) => editTelegramMessage(config.token, chatId, messageId, text, keyboard)),
+    );
+    results.forEach((result, index) => {
+      if (!result.ok) {
+        console.error("[telegram] could not update order message", {
+          order: order.reference,
+          chat: maskChatId(targets[index][0]),
+          error: result.error,
+        });
+      }
+    });
+  } catch (error) {
+    console.error("[telegram] refreshing order messages failed", { orderId, error });
+  }
 }

@@ -27,7 +27,10 @@ export class AdminError extends Error {
 
 type Audit = { action: string; targetType: string; targetId: string; summary: string };
 
-function audit(writer: Transaction | WriteBatch, session: SessionUser, entry: Audit) {
+/** Who made a change: an admin session, or an admin acting through the Telegram bot. */
+export type Actor = Pick<SessionUser, "uid" | "email">;
+
+function audit(writer: Transaction | WriteBatch, session: Actor, entry: Audit) {
   const ref = adminDb().collection("auditLogs").doc();
   const data = {
     ...entry,
@@ -286,13 +289,39 @@ export async function saveSettings(input: SettingsInput) {
 
 // ───────── Orders ─────────
 
+/** Change an order's status from the admin panel (verifies the admin session). */
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<StatusChange> {
+  const session = await assertAdmin();
+  return changeOrderStatus(orderId, status, { uid: session.uid, email: session.email, label: session.email });
+}
+
+export type StatusChange = {
+  stockChanged: boolean;
+  /** False when the order already had this status (nothing was written). */
+  changed: boolean;
+  reference: string;
+};
+
 /**
  * Change an order's status. Cancelling returns its items to stock exactly
  * once; re-opening a cancelled order takes them out again (and is refused if
  * the stock is no longer there). All of it happens in one transaction.
+ *
+ * Does NOT check who is calling: callers must authorize first
+ * (updateOrderStatus checks the admin session, the Telegram bot checks the
+ * admin chat IDs). `actor.label` is shown in the order history.
+ * `expectedFrom` refuses the change unless the order is currently in one of
+ * those statuses, so an old Telegram button cannot e.g. re-open a cancelled
+ * order.
  */
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<{ stockChanged: boolean }> {
-  const session = await assertAdmin();
+export async function changeOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  actor: Actor & { label: string | null },
+  { expectedFrom }: { expectedFrom?: readonly OrderStatus[] } = {},
+): Promise<StatusChange> {
+  // The activity log shows `email`; Telegram users have none, so it shows their label.
+  const session = { uid: actor.uid, email: actor.email ?? actor.label, label: actor.label };
   const db = adminDb();
   const ref = db.collection("orders").doc(orderId);
 
@@ -300,13 +329,19 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
     const snap = await tx.get(ref);
     if (!snap.exists) throw new AdminError("Bu buyurtma endi mavjud emas.", "NOT_FOUND");
     const order = mapOrder(snap);
-    if (order.status === status) return { stockChanged: false };
+    if (order.status === status) return { stockChanged: false, changed: false, reference: order.reference };
+    if (expectedFrom && !expectedFrom.includes(order.status)) {
+      throw new AdminError(
+        `Buyurtma holati allaqachon “${ORDER_STATUS_LABELS[order.status]}”. Bu tugma eskirgan.`,
+        "STALE",
+      );
+    }
 
     const release = status === "cancelled" && !order.stockReleased;
     const reserve = status !== "cancelled" && order.stockReleased;
     const update: Record<string, unknown> = {
       status,
-      history: FieldValue.arrayUnion({ status, at: Date.now(), byEmail: session.email }),
+      history: FieldValue.arrayUnion({ status, at: Date.now(), byEmail: session.label }),
       updatedAt: FieldValue.serverTimestamp(),
     };
 
@@ -350,7 +385,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
         release ? " (mahsulotlar omborga qaytarildi)" : reserve ? " (mahsulotlar ombordan qayta olindi)" : ""
       }`,
     });
-    return { stockChanged: release || reserve };
+    return { stockChanged: release || reserve, changed: true, reference: order.reference };
   });
 }
 

@@ -130,6 +130,11 @@ export function mapTelegramAlert(raw: unknown): TelegramAlertState {
     claimId: typeof t.claimId === "string" ? t.claimId : null,
     leaseUntil: intOrNull(t.leaseUntil),
     deliveredTo: arr(t.deliveredTo).filter((v): v is string => typeof v === "string"),
+    messageIds: Object.fromEntries(
+      Object.entries(obj(t.messageIds)).filter(
+        (entry): entry is [string, number] => typeof entry[1] === "number" && Number.isSafeInteger(entry[1]),
+      ),
+    ),
   };
 }
 

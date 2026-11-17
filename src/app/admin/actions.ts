@@ -1,6 +1,7 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import {
   categoryInputSchema,
@@ -28,7 +29,7 @@ import {
 } from "@/server/admin/mutations";
 import { CATALOG_TAG, SETTINGS_TAG } from "@/server/catalog";
 import { sendOrderEmails } from "@/server/email";
-import { sendOrderTelegram } from "@/server/telegram";
+import { refreshOrderMessages, sendOrderTelegram } from "@/server/telegram";
 import type { ActionResult } from "@/lib/types";
 
 /**
@@ -114,8 +115,11 @@ export async function saveSettingsAction(input: unknown) {
 
 export async function updateOrderStatusAction(orderId: string, status: string) {
   return run(async () => {
-    const result = await updateOrderStatus(orderIdSchema.parse(orderId), orderStatusSchema.parse(status));
+    const id = orderIdSchema.parse(orderId);
+    const result = await updateOrderStatus(id, orderStatusSchema.parse(status));
     if (result.stockChanged) updateTag(CATALOG_TAG);
+    // Update the order's Telegram messages (status line and buttons) too.
+    if (result.changed) after(() => refreshOrderMessages(id));
     return null;
   });
 }

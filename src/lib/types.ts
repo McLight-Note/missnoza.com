@@ -172,6 +172,8 @@ export type TelegramAlertState = {
   leaseUntil: number | null;
   /** Chat IDs for which Telegram has confirmed delivery of this order. */
   deliveredTo: string[];
+  /** Telegram message ID per chat, so the message can be edited later (status buttons). */
+  messageIds: Record<string, number>;
 };
 
 export type OrderNote = { id: string; text: string; authorEmail: string; createdAt: number };
