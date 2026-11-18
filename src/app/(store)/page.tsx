@@ -1,50 +1,21 @@
 import Link from "next/link";
-import { Banknote, PackageCheck, PhoneCall, Send, Sparkles } from "lucide-react";
-import { ProductGrid, displayCompareAt } from "@/components/store/product-card";
+import { Send, Sparkles } from "lucide-react";
+import { featuredSlides } from "@/components/store/featured";
+import { ProductGrid } from "@/components/store/product-card";
 import { ProductSlider } from "@/components/store/product-slider";
+import { promises } from "@/components/store/promises";
+import { SideRails } from "@/components/store/side-rails";
 import { ButtonLink, buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/misc";
 import { siteConfig } from "@/config/site";
 import { filterProducts, getCatalog } from "@/server/catalog";
-
-const promises = [
-  {
-    icon: Banknote,
-    title: "Toʻlov yetkazib berilganda",
-    text: "Onlayn toʻlov shart emas. Buyurtma yetib kelganda yoki biz bilan kelishilgan tartibda toʻlaysiz.",
-  },
-  {
-    icon: PhoneCall,
-    title: "Telefon orqali tasdiqlanadi",
-    text: "Har bir buyurtmani joʻnatishdan oldin qoʻngʻiroq qilib yoki yozib tasdiqlaymiz.",
-  },
-  {
-    icon: PackageCheck,
-    title: "Ehtiyotkorlik bilan qadoqlanadi",
-    text: "Har bir buyurtma joʻnatishdan oldin tekshiriladi va qoʻlda qadoqlanadi.",
-  },
-];
 
 export default async function HomePage() {
   const catalog = await getCatalog();
   // Every product, with featured ones first (then in-stock, then newest).
   const products = filterProducts(catalog, { sort: "featured" });
   // The sliding banner advertises products marked "featured" that are in stock.
-  const slides = products
-    .filter((p) => p.featured && p.inStock)
-    .slice(0, 6)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      categoryName: p.categoryName,
-      imageUrl: p.images[0]?.url ?? null,
-      imageAlt: p.images[0]?.alt || p.name,
-      price: p.fromPrice,
-      compareAtPrice: displayCompareAt(p),
-      hasPriceRange: p.hasPriceRange,
-      onSale: p.onSale,
-    }));
+  const slides = featuredSlides(products);
 
   return (
     <>
@@ -86,90 +57,95 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="telegram-heading" className="container-page pt-8">
-        <div className="flex flex-col gap-4 rounded-3xl border border-line bg-brand-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div className="flex items-start gap-4">
-            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-600 text-white">
-              <Send className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 id="telegram-heading" className="text-xl font-semibold sm:text-2xl">
-                Telegram kanalimizga qoʻshiling
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-muted sm:text-base">
-                Yangi kelgan koreys kosmetikasi, aksiyalar va chegirmalardan birinchi boʻlib xabardor boʻling.
-              </p>
-            </div>
-          </div>
-          <a
-            href={siteConfig.telegramChannel}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonClass({ size: "lg" }, "shrink-0")}
-          >
-            Kanalga oʻtish
-          </a>
-        </div>
-      </section>
+      {/* Everything below the hero. On wide screens the side rails fill the empty margins. */}
+      <div className="relative">
+        <SideRails />
 
-      {catalog.categories.length > 0 && (
-        <section aria-labelledby="categories-heading" className="container-page pt-12">
-          <h2 id="categories-heading" className="text-2xl font-semibold sm:text-3xl">
-            Kategoriyalar
+        <section aria-labelledby="telegram-heading" className="container-page pt-8">
+          <div className="flex flex-col gap-4 rounded-3xl border border-line bg-brand-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-start gap-4">
+              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-600 text-white">
+                <Send className="size-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 id="telegram-heading" className="text-xl font-semibold sm:text-2xl">
+                  Telegram kanalimizga qoʻshiling
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted sm:text-base">
+                  Yangi kelgan koreys kosmetikasi, aksiyalar va chegirmalardan birinchi boʻlib xabardor boʻling.
+                </p>
+              </div>
+            </div>
+            <a
+              href={siteConfig.telegramChannel}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass({ size: "lg" }, "shrink-0")}
+            >
+              Kanalga oʻtish
+            </a>
+          </div>
+        </section>
+
+        {catalog.categories.length > 0 && (
+          <section aria-labelledby="categories-heading" className="container-page pt-12">
+            <h2 id="categories-heading" className="text-2xl font-semibold sm:text-3xl">
+              Kategoriyalar
+            </h2>
+            <ul className="mt-5 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible">
+              {catalog.categories.map((category) => (
+                <li key={category.id} className="shrink-0">
+                  <Link
+                    href={`/products?category=${category.slug}`}
+                    className="inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-5 text-sm font-medium hover:border-brand-300 hover:bg-brand-50"
+                  >
+                    {category.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {slides.length > 0 && (
+          <section
+            aria-roledescription="carousel"
+            aria-label="Tavsiya etilgan mahsulotlar"
+            className="container-page pt-12"
+          >
+            <ProductSlider slides={slides} />
+          </section>
+        )}
+
+        <section aria-labelledby="products-heading" className="container-page pt-12">
+          <h2 id="products-heading" className="text-2xl font-semibold sm:text-3xl">
+            Barcha mahsulotlar
           </h2>
-          <ul className="mt-5 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible">
-            {catalog.categories.map((category) => (
-              <li key={category.id} className="shrink-0">
-                <Link
-                  href={`/products?category=${category.slug}`}
-                  className="inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-5 text-sm font-medium hover:border-brand-300 hover:bg-brand-50"
-                >
-                  {category.name}
-                </Link>
+          <div className="mt-6">
+            {products.length > 0 ? (
+              <ProductGrid products={products} priorityCount={4} />
+            ) : (
+              <EmptyState title={catalog.configured ? "Mahsulotlar tez orada qoʻshiladi" : "Doʻkon sozlanmoqda"}>
+                {catalog.configured
+                  ? "Katalog tayyorlanmoqda. Keyinroq qayta kiring."
+                  : "Doʻkon hali maʼlumotlar bazasiga ulanmagan. README boʻyicha Firebase sozlamalarini kiriting, soʻng admin panelda mahsulot qoʻshing."}
+              </EmptyState>
+            )}
+          </div>
+        </section>
+
+        <section aria-label="Buyurtma qanday ishlaydi" className="container-page pt-14">
+          <ul className="grid gap-4 sm:grid-cols-3">
+            {promises.map(({ icon: Icon, title, text }) => (
+              <li key={title} className="rounded-2xl border border-line bg-surface p-5">
+                <Icon className="size-6 text-brand-600" aria-hidden="true" />
+                <h3 className="mt-3 font-sans text-base font-semibold">{title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
               </li>
             ))}
           </ul>
         </section>
-      )}
-
-      {slides.length > 0 && (
-        <section
-          aria-roledescription="carousel"
-          aria-label="Tavsiya etilgan mahsulotlar"
-          className="container-page pt-12"
-        >
-          <ProductSlider slides={slides} />
-        </section>
-      )}
-
-      <section aria-labelledby="products-heading" className="container-page pt-12">
-        <h2 id="products-heading" className="text-2xl font-semibold sm:text-3xl">
-          Barcha mahsulotlar
-        </h2>
-        <div className="mt-6">
-          {products.length > 0 ? (
-            <ProductGrid products={products} priorityCount={4} />
-          ) : (
-            <EmptyState title={catalog.configured ? "Mahsulotlar tez orada qoʻshiladi" : "Doʻkon sozlanmoqda"}>
-              {catalog.configured
-                ? "Katalog tayyorlanmoqda. Keyinroq qayta kiring."
-                : "Doʻkon hali maʼlumotlar bazasiga ulanmagan. README boʻyicha Firebase sozlamalarini kiriting, soʻng admin panelda mahsulot qoʻshing."}
-            </EmptyState>
-          )}
-        </div>
-      </section>
-
-      <section aria-label="Buyurtma qanday ishlaydi" className="container-page pt-14">
-        <ul className="grid gap-4 sm:grid-cols-3">
-          {promises.map(({ icon: Icon, title, text }) => (
-            <li key={title} className="rounded-2xl border border-line bg-surface p-5">
-              <Icon className="size-6 text-brand-600" aria-hidden="true" />
-              <h3 className="mt-3 font-sans text-base font-semibold">{title}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      </div>
     </>
   );
 }

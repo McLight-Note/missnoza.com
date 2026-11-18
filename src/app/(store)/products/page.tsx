@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { SearchX } from "lucide-react";
 import { CatalogFilters } from "@/components/store/catalog-filters";
 import { ProductGrid, ProductGridSkeleton } from "@/components/store/product-card";
+import { SideRails } from "@/components/store/side-rails";
 import { ButtonLink, buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/misc";
 import { SORT_OPTIONS, filterProducts, getCatalog } from "@/server/catalog";
@@ -19,20 +20,23 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 
 export default function ProductsPage({ searchParams }: PageProps<"/products">) {
   return (
-    <div className="container-page py-8 sm:py-10">
-      <Suspense
-        fallback={
-          <>
-            <h1 className="text-3xl font-semibold sm:text-4xl">Barcha mahsulotlar</h1>
-            <div className="skeleton mt-6 h-[4.25rem] w-full" />
-            <div className="mt-8">
-              <ProductGridSkeleton />
-            </div>
-          </>
-        }
-      >
-        <Results searchParams={searchParams} />
-      </Suspense>
+    <div className="relative">
+      <SideRails />
+      <div className="container-page py-8 sm:py-10">
+        <Suspense
+          fallback={
+            <>
+              <h1 className="text-3xl font-semibold sm:text-4xl">Barcha mahsulotlar</h1>
+              <div className="skeleton mt-6 h-[4.25rem] w-full" />
+              <div className="mt-8">
+                <ProductGridSkeleton />
+              </div>
+            </>
+          }
+        >
+          <Results searchParams={searchParams} />
+        </Suspense>
+      </div>
     </div>
   );
 }

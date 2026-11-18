@@ -44,6 +44,17 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
   }
+  /* On wide screens, soft pink glows in the side margins so they are not blank. */
+  @media (min-width: 1280px) {
+    body {
+      background:
+        radial-gradient(34rem 30rem at 0% 22%, rgb(232 155 179 / 0.2), transparent 70%),
+        radial-gradient(34rem 30rem at 100% 48%, rgb(243 198 212 / 0.32), transparent 70%),
+        radial-gradient(34rem 30rem at 0% 78%, rgb(243 198 212 / 0.26), transparent 70%),
+        var(--color-cream);
+      background-repeat: no-repeat;
+    }
+  }
   h1,
   h2,
   h3 {
