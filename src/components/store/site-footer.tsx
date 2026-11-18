@@ -75,6 +75,11 @@ export function SiteFooter({ categories, contact, year }: { categories: Category
                 </a>
               </li>
             )}
+            <li>
+              <a href={siteConfig.telegramChannel} target="_blank" rel="noopener noreferrer" className="hover:text-ink hover:underline">
+                Telegram kanal: mijozlar fikri
+              </a>
+            </li>
             {telegram && (
               <li>
                 <a href={telegram} target="_blank" rel="noopener noreferrer" className="hover:text-ink hover:underline">

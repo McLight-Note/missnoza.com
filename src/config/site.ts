@@ -22,6 +22,9 @@ export const siteConfig = {
   logo: { src: "/brand/logo.svg", width: 148, height: 32 },
   heroImage: "/brand/image.png",
 
+  /** Telegram channel with customer reviews (shown on the home page, header and footer). */
+  telegramChannel: "https://t.me/missnozaotziv",
+
   /**
    * Currency. Prices are stored as whole numbers in the currency's smallest
    * unit. `fractionDigits` says how many decimals that unit has: 0 for UZS,

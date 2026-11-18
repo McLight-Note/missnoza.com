@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Banknote, PackageCheck, PhoneCall, Sparkles } from "lucide-react";
+import { Banknote, PackageCheck, PhoneCall, Send, Sparkles } from "lucide-react";
 import { ProductGrid, displayCompareAt } from "@/components/store/product-card";
 import { ProductSlider } from "@/components/store/product-slider";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/misc";
 import { siteConfig } from "@/config/site";
 import { filterProducts, getCatalog } from "@/server/catalog";
@@ -83,6 +83,32 @@ export default async function HomePage() {
               </ButtonLink>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="telegram-heading" className="container-page pt-8">
+        <div className="flex flex-col gap-4 rounded-3xl border border-line bg-brand-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex items-start gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-600 text-white">
+              <Send className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 id="telegram-heading" className="text-xl font-semibold sm:text-2xl">
+                Mijozlar fikrlari Telegram kanalimizda
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted sm:text-base">
+                Haqiqiy xaridorlarning sharhlarini oʻqing va yangiliklardan xabardor boʻling.
+              </p>
+            </div>
+          </div>
+          <a
+            href={siteConfig.telegramChannel}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonClass({ size: "lg" }, "shrink-0")}
+          >
+            Kanalga oʻtish
+          </a>
         </div>
       </section>
 

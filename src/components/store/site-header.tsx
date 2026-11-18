@@ -3,7 +3,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, Search, ShoppingBag, X } from "lucide-react";
+import { Menu, Search, Send, ShoppingBag, X } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { cartCount, useCart } from "@/lib/cart";
 import type { Category } from "@/lib/types";
@@ -105,6 +105,16 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
         </div>
 
         <div className="ml-auto flex items-center md:ml-2">
+          <a
+            href={siteConfig.telegramChannel}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex size-11 items-center justify-center rounded-full text-brand-700 hover:bg-sand"
+            aria-label="Telegram kanalimiz: mijozlar fikrlari"
+            title="Telegram kanalimiz: mijozlar fikrlari"
+          >
+            <Send className="size-5" aria-hidden="true" />
+          </a>
           <CartLink />
         </div>
       </div>
@@ -129,6 +139,15 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
               <Link href="/contact" onClick={close} className="rounded-xl px-3 py-3 text-base font-medium text-ink hover:bg-sand">
                 Aloqa
               </Link>
+              <a
+                href={siteConfig.telegramChannel}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={close}
+                className="flex items-center gap-2 rounded-xl px-3 py-3 text-base font-medium text-brand-700 hover:bg-sand"
+              >
+                <Send className="size-4" aria-hidden="true" /> Telegram kanal: mijozlar fikri
+              </a>
             </nav>
           </div>
         </div>
