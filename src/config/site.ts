@@ -20,7 +20,7 @@ export const siteConfig = {
 
   /** Logo shown in the header. Replace the file in /public/brand to rebrand. */
   logo: { src: "/brand/logo.svg", width: 148, height: 32 },
-  heroImage: "/brand/hero.svg",
+  heroImage: "/brand/image.png",
 
   /**
    * Currency. Prices are stored as whole numbers in the currency's smallest

@@ -48,16 +48,30 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="border-b border-line bg-gradient-to-b from-brand-50 to-cream">
-        <div className="container-page grid items-center gap-8 py-10 sm:py-14 lg:grid-cols-2 lg:py-20">
-          <div>
+      {/* Full-width hero: the photo spans the whole page width, with the text on top. */}
+      <section className="relative isolate overflow-hidden border-b border-line bg-ink">
+        {/* Replace /public/brand/image.png with your own photo (any image format works). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={siteConfig.heroImage}
+          alt=""
+          fetchPriority="high"
+          className="absolute inset-0 -z-20 size-full object-cover object-[50%_40%]"
+        />
+        {/* Darkens the photo so the white text stays readable, most on the text side. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-ink/60 sm:bg-transparent sm:bg-gradient-to-r sm:from-ink/80 sm:via-ink/50 sm:to-ink/5"
+        />
+        <div className="container-page flex min-h-[28rem] items-center py-14 sm:min-h-[32rem] lg:min-h-[38rem] lg:py-20">
+          <div className="max-w-xl text-white">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1 text-xs font-semibold tracking-wide text-brand-700 uppercase shadow-card">
               <Sparkles className="size-3.5" aria-hidden="true" /> Yangi mavsum tanlovi
             </p>
             <h1 className="mt-4 text-4xl leading-[1.05] font-semibold text-balance sm:text-5xl lg:text-6xl">
               Goʻzallik uchun sara mahsulotlar
             </h1>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-muted sm:text-lg">
+            <p className="mt-4 max-w-md text-base leading-relaxed text-white/90 sm:text-lg">
               {siteConfig.name} doʻkonidan teri parvarishi vositalari va kosmetika. Bir necha bosishda onlayn buyurtma bering va yetkazib berilganda toʻlang.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
@@ -68,11 +82,6 @@ export default async function HomePage() {
                 Yetkazib berish va aloqa
               </ButtonLink>
             </div>
-          </div>
-          <div className="relative mx-auto aspect-[5/4] w-full max-w-lg overflow-hidden rounded-3xl bg-brand-100 shadow-card lg:max-w-none">
-            {/* Replace /public/brand/hero.svg with your own photo (any image format works). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={siteConfig.heroImage} alt="" fetchPriority="high" className="size-full object-cover" />
           </div>
         </div>
       </section>
