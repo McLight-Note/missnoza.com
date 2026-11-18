@@ -32,7 +32,7 @@ function Art({ className, children }: ArtProps & { children: React.ReactNode }) 
 const LEAF = "M0 0C8 -11 28 -11 36 0C28 11 8 11 0 0Z";
 
 /** A curved stem with leaves on both sides, like a sprig of green. */
-function Branch({ className }: ArtProps) {
+export function Branch({ className }: ArtProps) {
   // x, y, angle (degrees), scale: leaves placed along the stem.
   const leaves: [number, number, number, number][] = [
     [43, 160, -106, 1.05],
@@ -59,7 +59,7 @@ function Branch({ className }: ArtProps) {
 }
 
 /** A single broad leaf with veins. */
-function Leaf({ className }: ArtProps) {
+export function Leaf({ className }: ArtProps) {
   return (
     <Art className={className}>
       <path d="M100 190C40 140 40 60 100 10C160 60 160 140 100 190Z" fill="currentColor" fillOpacity="0.12" />
@@ -70,7 +70,7 @@ function Leaf({ className }: ArtProps) {
 }
 
 /** A five-petal blossom. */
-function Blossom({ className }: ArtProps) {
+export function Blossom({ className }: ArtProps) {
   return (
     <Art className={className}>
       {[0, 72, 144, 216, 288].map((angle) => (
@@ -90,8 +90,54 @@ function Blossom({ className }: ArtProps) {
   );
 }
 
+/** A short stem with a few leaves. */
+export function Sprig({ className }: ArtProps) {
+  // x, y, angle (degrees), scale
+  const leaves: [number, number, number, number][] = [
+    [100, 150, -135, 1],
+    [100, 150, -45, 1],
+    [99, 118, -135, 0.9],
+    [99, 118, -45, 0.9],
+    [100, 88, -130, 0.75],
+    [100, 88, -50, 0.75],
+    [100, 60, -90, 0.8],
+  ];
+  return (
+    <Art className={className}>
+      <path d="M100 190C100 150 98 110 100 60" />
+      {leaves.map(([x, y, angle, scale]) => (
+        <g key={`${y}-${angle}`} transform={`translate(${x} ${y}) rotate(${angle}) scale(${scale})`}>
+          <path d={LEAF} fill="currentColor" fillOpacity="0.14" />
+          <path d="M2 0H32" />
+        </g>
+      ))}
+    </Art>
+  );
+}
+
+/** A daisy with round petals. */
+export function Daisy({ className }: ArtProps) {
+  return (
+    <Art className={className}>
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+        <ellipse
+          key={angle}
+          cx="100"
+          cy="58"
+          rx="10"
+          ry="26"
+          transform={`rotate(${angle} 100 100)`}
+          fill="currentColor"
+          fillOpacity="0.12"
+        />
+      ))}
+      <circle cx="100" cy="100" r="13" fill="currentColor" fillOpacity="0.28" />
+    </Art>
+  );
+}
+
 /** A dew drop with a small highlight. */
-function Droplet({ className }: ArtProps) {
+export function Droplet({ className }: ArtProps) {
   return (
     <Art className={className}>
       <path d="M100 20C100 20 55 80 55 120a45 45 0 0 0 90 0C145 80 100 20 100 20Z" fill="currentColor" fillOpacity="0.12" />
@@ -103,15 +149,31 @@ function Droplet({ className }: ArtProps) {
 export function BackgroundDecor() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <Branch className="top-[5%] -left-10 w-32 rotate-6 text-sage opacity-45 md:w-52 xl:w-64" />
-      <Blossom className="top-[13%] -right-8 w-28 rotate-12 text-brand-300 opacity-60 md:w-44 xl:w-56" />
+      {/* Left edge */}
+      <Branch className="top-[4%] -left-10 w-32 rotate-6 text-sage opacity-45 md:w-52 xl:w-64" />
+      <Sprig className="top-[18%] -left-4 hidden w-24 -rotate-12 text-sage opacity-45 md:block xl:w-32" />
       <Leaf className="top-[27%] -left-8 hidden w-36 -rotate-12 text-sage opacity-40 md:block md:w-44 xl:w-52" />
-      <Droplet className="top-[38%] right-3 hidden w-16 text-brand-300 opacity-60 md:block xl:right-10 xl:w-20" />
-      <Branch className="top-[48%] -right-12 w-32 -scale-x-100 -rotate-12 text-sage opacity-45 md:w-56 xl:w-72" />
+      <Blossom className="top-[34%] -left-6 w-20 rotate-[30deg] text-brand-300 opacity-55 md:w-28 xl:w-36" />
+      <Daisy className="top-[42%] -left-4 hidden w-20 text-brand-200 opacity-80 md:block xl:w-28" />
+      <Droplet className="top-[54%] left-3 hidden w-14 text-brand-300 opacity-60 md:block xl:left-10 xl:w-20" />
       <Blossom className="top-[62%] -left-8 hidden w-32 -rotate-12 text-brand-300 opacity-60 md:block md:w-44 xl:w-56" />
-      <Leaf className="top-[74%] -right-8 w-28 rotate-[24deg] text-sage opacity-40 md:w-40 xl:w-52" />
-      <Droplet className="top-[82%] left-4 hidden w-14 text-brand-300 opacity-60 md:block xl:left-12 xl:w-20" />
+      <Sprig className="top-[70%] -left-3 w-20 rotate-12 text-sage opacity-45 md:w-28 xl:w-36" />
+      <Branch className="top-[78%] -left-12 hidden w-40 rotate-[16deg] text-sage opacity-40 md:block xl:w-56" />
+      <Droplet className="top-[86%] left-4 hidden w-14 text-brand-300 opacity-60 md:block xl:left-12 xl:w-20" />
+      <Daisy className="top-[92%] -left-5 w-16 rotate-12 text-brand-200 opacity-80 md:w-24 xl:w-32" />
       <Branch className="bottom-2 -left-10 hidden w-48 rotate-[200deg] text-sage opacity-40 md:block xl:w-64" />
+
+      {/* Right edge */}
+      <Daisy className="top-[8%] -right-4 hidden w-20 text-brand-200 opacity-80 md:block xl:w-28" />
+      <Blossom className="top-[13%] -right-8 w-28 rotate-12 text-brand-300 opacity-60 md:w-44 xl:w-56" />
+      <Sprig className="top-[30%] -right-4 w-20 -scale-x-100 rotate-12 text-sage opacity-45 md:w-28 xl:w-36" />
+      <Droplet className="top-[38%] right-3 hidden w-16 text-brand-300 opacity-60 md:block xl:right-10 xl:w-20" />
+      <Branch className="top-[46%] -right-12 w-32 -scale-x-100 -rotate-12 text-sage opacity-45 md:w-56 xl:w-72" />
+      <Blossom className="top-[56%] -right-5 hidden w-24 -rotate-[24deg] text-brand-300 opacity-55 md:block xl:w-32" />
+      <Daisy className="top-[65%] -right-4 w-16 -rotate-12 text-brand-200 opacity-80 md:w-24 xl:w-32" />
+      <Leaf className="top-[74%] -right-8 w-28 rotate-[24deg] text-sage opacity-40 md:w-40 xl:w-52" />
+      <Sprig className="top-[84%] -right-3 hidden w-24 -scale-x-100 -rotate-12 text-sage opacity-45 md:block xl:w-32" />
+      <Leaf className="top-[91%] -right-6 hidden w-24 -rotate-[20deg] text-sage opacity-40 md:block xl:w-36" />
       <Blossom className="bottom-6 -right-6 w-24 rotate-[20deg] text-brand-300 opacity-55 md:w-36 xl:w-48" />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Blossom, Branch, Daisy, Droplet, Leaf, Sprig } from "@/components/store/background-decor";
 import { Price, ProductImage } from "@/components/store/product-card";
 import { promises } from "@/components/store/promises";
 import { ButtonLink } from "@/components/ui/button";
@@ -35,6 +36,35 @@ const SLIDE_MS = 1000;
 
 const roundButton =
   "grid size-10 place-items-center rounded-full bg-surface/95 text-ink shadow-card transition-colors hover:bg-brand-50";
+
+/** Plant drawings behind a slide's text, arranged differently for each of three variants. */
+function SlideDecor({ variant }: { variant: number }) {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+      {variant === 0 && (
+        <>
+          <Branch className="-bottom-12 -left-12 w-44 rotate-[12deg] text-sage opacity-50 sm:w-56" />
+          <Blossom className="-top-8 -right-8 w-32 rotate-12 text-brand-300 opacity-70 sm:w-40" />
+          <Droplet className="top-1/2 right-6 hidden w-10 text-brand-300 opacity-60 sm:block" />
+        </>
+      )}
+      {variant === 1 && (
+        <>
+          <Leaf className="-top-6 -left-8 w-32 -rotate-[25deg] text-sage opacity-45 sm:w-40" />
+          <Sprig className="-right-4 -bottom-6 w-28 rotate-[18deg] text-sage opacity-50 sm:w-36" />
+          <Daisy className="top-6 right-10 hidden w-16 text-brand-300 opacity-70 sm:block" />
+        </>
+      )}
+      {variant === 2 && (
+        <>
+          <Blossom className="-bottom-14 -left-12 w-36 -rotate-12 text-brand-300 opacity-70 sm:w-44" />
+          <Branch className="-top-8 -right-10 w-44 -scale-x-100 rotate-[200deg] text-sage opacity-50 sm:w-56" />
+          <Droplet className="bottom-8 left-1/2 hidden w-9 text-brand-300 opacity-60 sm:block" />
+        </>
+      )}
+    </div>
+  );
+}
 
 /**
  * Advertising-style banner that slides through a few products.
@@ -128,7 +158,8 @@ export function ProductSlider({ slides }: { slides: ProductSlide[] }) {
             aria-label={`${index + 1} / ${count}`}
             className="grid w-full flex-none snap-start sm:min-h-80 sm:grid-cols-2 lg:min-h-96"
           >
-            <div className="flex flex-col items-start justify-center gap-3 p-6 pb-20 sm:order-1 sm:p-10 sm:pb-20 lg:p-14 lg:pb-20">
+            <div className="relative isolate flex flex-col items-start justify-center gap-3 overflow-hidden p-6 pb-20 sm:order-1 sm:p-10 sm:pb-20 lg:p-14 lg:pb-20">
+              <SlideDecor variant={index % 3} />
               <div className="flex flex-wrap items-center gap-2">
                 {slide.onSale && (
                   <Badge tone="brand">{slide.discountPercent ? `Chegirma −${slide.discountPercent}%` : "Chegirma"}</Badge>
