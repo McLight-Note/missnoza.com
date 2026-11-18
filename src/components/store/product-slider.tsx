@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Price, ProductImage } from "@/components/store/product-card";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
@@ -20,7 +20,7 @@ export type ProductSlide = {
   onSale: boolean;
 };
 
-const INTERVAL_MS = 5000;
+const INTERVAL_MS = 1000;
 
 const roundButton =
   "grid size-10 place-items-center rounded-full bg-surface/95 text-ink shadow-card transition-colors hover:bg-brand-50";
@@ -29,17 +29,14 @@ const roundButton =
  * Advertising-style banner that slides through a few products.
  *
  * Built on native scroll-snap, so swiping works on phones and it needs no
- * library. It advances by itself, pauses while the pointer, a finger or the
- * keyboard focus is on it (or when the visitor presses pause), and does not
- * auto-advance for people who ask their device to reduce motion.
+ * library. It advances by itself every second and never pauses (it only
+ * waits while the browser tab is hidden, and stays still for people who ask
+ * their device to reduce motion).
  */
 export function ProductSlider({ slides }: { slides: ProductSlide[] }) {
   const trackRef = useRef<HTMLUListElement>(null);
   const [active, setActive] = useState(0);
-  const [hovering, setHovering] = useState(false);
-  const [userPaused, setUserPaused] = useState(false);
   const count = slides.length;
-  const playing = count > 1 && !userPaused && !hovering;
 
   const goTo = useCallback(
     (index: number) => {
@@ -52,30 +49,23 @@ export function ProductSlider({ slides }: { slides: ProductSlide[] }) {
     [count],
   );
 
-  // Advance every few seconds. The timer restarts after any change of slide.
+  // Advance every second. The timer restarts after any change of slide, so a
+  // manual arrow, dot or swipe gets a full second before the next move.
   useEffect(() => {
-    if (!playing || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (count < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setInterval(() => {
       if (!document.hidden) goTo(active + 1);
     }, INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [playing, active, goTo]);
+  }, [count, active, goTo]);
 
   if (count === 0) return null;
 
   return (
-    <div
-      className="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-brand-50 to-brand-100 shadow-card"
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      onFocus={() => setHovering(true)}
-      onBlur={() => setHovering(false)}
-      onTouchStart={() => setHovering(true)}
-      onTouchEnd={() => setHovering(false)}
-    >
+    <div className="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-brand-50 to-brand-100 shadow-card">
       <ul
         ref={trackRef}
-        aria-live={playing ? "off" : "polite"}
+        aria-live="off"
         onScroll={(e) => {
           const track = e.currentTarget;
           setActive(Math.round(track.scrollLeft / track.clientWidth));
@@ -113,15 +103,7 @@ export function ProductSlider({ slides }: { slides: ProductSlide[] }) {
 
       {count > 1 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 p-4 sm:px-6 lg:px-10">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-surface/90 py-1 pr-3 pl-1 shadow-card">
-            <button
-              type="button"
-              onClick={() => setUserPaused((p) => !p)}
-              aria-label={userPaused ? "Avto-almashtirishni yoqish" : "Avto-almashtirishni toʻxtatish"}
-              className="grid size-8 place-items-center rounded-full text-ink hover:bg-brand-50"
-            >
-              {userPaused ? <Play className="size-4" aria-hidden="true" /> : <Pause className="size-4" aria-hidden="true" />}
-            </button>
+          <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-surface/90 px-2 py-1 shadow-card">
             <div className="flex items-center">
               {slides.map((slide, index) => (
                 <button
