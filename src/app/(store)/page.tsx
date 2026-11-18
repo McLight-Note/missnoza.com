@@ -26,13 +26,8 @@ const promises = [
 
 export default async function HomePage() {
   const catalog = await getCatalog();
-  const ranked = filterProducts(catalog, { sort: "featured" });
-  // Featured products if any are marked, otherwise the first few in the default order.
-  const picked = ranked.filter((p) => p.featured).slice(0, 8);
-  const featured = picked.length > 0 ? picked : ranked.slice(0, 4);
-  const newest = filterProducts(catalog, { sort: "newest" })
-    .filter((p) => !featured.some((f) => f.id === p.id))
-    .slice(0, 4);
+  // Every product, with featured ones first (then in-stock, then newest).
+  const products = filterProducts(catalog, { sort: "featured" });
 
   return (
     <>
@@ -85,20 +80,13 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section aria-labelledby="featured-heading" className="container-page pt-12">
-        <div className="flex items-end justify-between gap-4">
-          <h2 id="featured-heading" className="text-2xl font-semibold sm:text-3xl">
-            Xaridorlar tanlovi
-          </h2>
-          {featured.length > 0 && (
-            <Link href="/products" className="text-sm font-semibold text-brand-700 underline-offset-4 hover:underline">
-              Hammasini koʻrish
-            </Link>
-          )}
-        </div>
+      <section aria-labelledby="products-heading" className="container-page pt-12">
+        <h2 id="products-heading" className="text-2xl font-semibold sm:text-3xl">
+          Barcha mahsulotlar
+        </h2>
         <div className="mt-6">
-          {featured.length > 0 ? (
-            <ProductGrid products={featured} priorityCount={2} />
+          {products.length > 0 ? (
+            <ProductGrid products={products} priorityCount={4} />
           ) : (
             <EmptyState title={catalog.configured ? "Mahsulotlar tez orada qoʻshiladi" : "Doʻkon sozlanmoqda"}>
               {catalog.configured
@@ -108,17 +96,6 @@ export default async function HomePage() {
           )}
         </div>
       </section>
-
-      {newest.length > 0 && (
-        <section aria-labelledby="new-heading" className="container-page pt-14">
-          <h2 id="new-heading" className="text-2xl font-semibold sm:text-3xl">
-            Yangi kelganlar
-          </h2>
-          <div className="mt-6">
-            <ProductGrid products={newest} />
-          </div>
-        </section>
-      )}
 
       <section aria-label="Buyurtma qanday ishlaydi" className="container-page pt-14">
         <ul className="grid gap-4 sm:grid-cols-3">
