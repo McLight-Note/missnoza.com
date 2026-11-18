@@ -20,7 +20,9 @@ export type ProductSlide = {
   onSale: boolean;
 };
 
-const INTERVAL_MS = 1000;
+/** Time between automatic moves, and how long each slide transition takes. */
+const INTERVAL_MS = 2000;
+const SLIDE_MS = 1000;
 
 const roundButton =
   "grid size-10 place-items-center rounded-full bg-surface/95 text-ink shadow-card transition-colors hover:bg-brand-50";
@@ -29,7 +31,7 @@ const roundButton =
  * Advertising-style banner that slides through a few products.
  *
  * Built on native scroll-snap, so swiping works on phones and it needs no
- * library. It advances by itself every second and never pauses (it only
+ * library. It advances by itself every 2 seconds and never pauses (it only
  * waits while the browser tab is hidden, and stays still for people who ask
  * their device to reduce motion).
  */
@@ -38,19 +40,53 @@ export function ProductSlider({ slides }: { slides: ProductSlide[] }) {
   const [active, setActive] = useState(0);
   const count = slides.length;
 
+  const frameRef = useRef<number | null>(null);
+
+  /** Stop a running slide animation and give scroll-snap back to the browser. */
+  const cancelAnimation = useCallback(() => {
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    if (trackRef.current) trackRef.current.style.scrollSnapType = "";
+  }, []);
+
+  // The browser's own smooth scrolling is fast and cannot be slowed down, so
+  // the slide is animated by hand. Scroll-snap is switched off while it runs.
   const goTo = useCallback(
     (index: number) => {
       const track = trackRef.current;
       if (!track || count === 0) return;
+      cancelAnimation();
+      const left = (((index % count) + count) % count) * track.clientWidth;
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const target = (index + count) % count;
-      track.scrollTo({ left: target * track.clientWidth, behavior: reduce ? "auto" : "smooth" });
+      const from = track.scrollLeft;
+      if (reduce || left === from) {
+        track.scrollTo({ left, behavior: "auto" });
+        return;
+      }
+      track.style.scrollSnapType = "none";
+      const start = performance.now();
+      const step = (now: number) => {
+        const t = Math.min((now - start) / SLIDE_MS, 1);
+        const eased = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2; // ease in-out
+        track.scrollLeft = from + (left - from) * eased;
+        if (t < 1) {
+          frameRef.current = requestAnimationFrame(step);
+        } else {
+          frameRef.current = null;
+          track.style.scrollSnapType = "";
+        }
+      };
+      frameRef.current = requestAnimationFrame(step);
     },
-    [count],
+    [count, cancelAnimation],
   );
 
-  // Advance every second. The timer restarts after any change of slide, so a
-  // manual arrow, dot or swipe gets a full second before the next move.
+  useEffect(() => cancelAnimation, [cancelAnimation]);
+
+  // Advance every 2 seconds. The timer restarts after any change of slide, so
+  // a manual arrow, dot or swipe gets a full interval before the next move.
   useEffect(() => {
     if (count < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setInterval(() => {
@@ -66,6 +102,9 @@ export function ProductSlider({ slides }: { slides: ProductSlide[] }) {
       <ul
         ref={trackRef}
         aria-live="off"
+        // A swipe or mouse-wheel scroll takes over from a running animation.
+        onPointerDown={cancelAnimation}
+        onWheel={cancelAnimation}
         onScroll={(e) => {
           const track = e.currentTarget;
           setActive(Math.round(track.scrollLeft / track.clientWidth));
