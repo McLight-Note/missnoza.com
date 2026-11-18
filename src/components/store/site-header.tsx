@@ -110,8 +110,8 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
             target="_blank"
             rel="noopener noreferrer"
             className="flex size-11 items-center justify-center rounded-full text-brand-700 hover:bg-sand"
-            aria-label="Telegram kanalimiz: mijozlar fikrlari"
-            title="Telegram kanalimiz: mijozlar fikrlari"
+            aria-label="Telegram kanalimiz"
+            title="Telegram kanalimiz"
           >
             <Send className="size-5" aria-hidden="true" />
           </a>
@@ -146,7 +146,7 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
                 onClick={close}
                 className="flex items-center gap-2 rounded-xl px-3 py-3 text-base font-medium text-brand-700 hover:bg-sand"
               >
-                <Send className="size-4" aria-hidden="true" /> Telegram kanal: mijozlar fikri
+                <Send className="size-4" aria-hidden="true" /> Telegram kanalimiz
               </a>
             </nav>
           </div>

@@ -94,10 +94,10 @@ export default async function HomePage() {
             </span>
             <div>
               <h2 id="telegram-heading" className="text-xl font-semibold sm:text-2xl">
-                Mijozlar fikrlari Telegram kanalimizda
+                Telegram kanalimizga qoʻshiling
               </h2>
               <p className="mt-1 text-sm leading-relaxed text-muted sm:text-base">
-                Haqiqiy xaridorlarning sharhlarini oʻqing va yangiliklardan xabardor boʻling.
+                Yangi kelgan koreys kosmetikasi, aksiyalar va chegirmalardan birinchi boʻlib xabardor boʻling.
               </p>
             </div>
           </div>

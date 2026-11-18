@@ -22,8 +22,8 @@ export const siteConfig = {
   logo: { src: "/brand/logo.svg", width: 148, height: 32 },
   heroImage: "/brand/image.png",
 
-  /** Telegram channel with customer reviews (shown on the home page, header and footer). */
-  telegramChannel: "https://t.me/missnozaotziv",
+  /** Our Telegram channel (shown on the home page, header, mobile menu and footer). */
+  telegramChannel: "https://t.me/missnoza_korean_cosmetics",
 
   /**
    * Currency. Prices are stored as whole numbers in the currency's smallest
