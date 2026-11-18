@@ -21,6 +21,9 @@
   --color-brand-700: #822547;
   --color-brand-800: #641c37;
 
+  /* Soft leaf green used only for the botanical background drawings. */
+  --color-sage: #7f9f86;
+
   --color-success: #1d6f47;
   --color-success-soft: #e5f4ec;
   --color-warning: #8a5a00;

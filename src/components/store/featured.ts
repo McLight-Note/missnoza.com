@@ -10,16 +10,28 @@ export function featuredSlides(products: PublicProduct[], limit = 6): ProductSli
   return products
     .filter((p) => p.featured && p.inStock)
     .slice(0, limit)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      categoryName: p.categoryName,
-      imageUrl: p.images[0]?.url ?? null,
-      imageAlt: p.images[0]?.alt || p.name,
-      price: p.fromPrice,
-      compareAtPrice: displayCompareAt(p),
-      hasPriceRange: p.hasPriceRange,
-      onSale: p.onSale,
-    }));
+    .map((p) => {
+      const compareAtPrice = displayCompareAt(p);
+      const discountPercent =
+        compareAtPrice && compareAtPrice > p.fromPrice && !p.hasPriceRange
+          ? Math.round((1 - p.fromPrice / compareAtPrice) * 100)
+          : null;
+      return {
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        categoryName: p.categoryName,
+        description: p.description.trim().slice(0, 200),
+        imageUrl: p.images[0]?.url ?? null,
+        imageAlt: p.images[0]?.alt || p.name,
+        price: p.fromPrice,
+        compareAtPrice,
+        hasPriceRange: p.hasPriceRange,
+        onSale: p.onSale,
+        discountPercent: discountPercent && discountPercent > 0 ? discountPercent : null,
+        optionLabel: p.optionLabel,
+        options: p.variants.slice(0, 6).map((v) => ({ name: v.name, swatch: v.swatch })),
+        moreOptions: Math.max(0, p.variants.length - 6),
+      };
+    });
 }

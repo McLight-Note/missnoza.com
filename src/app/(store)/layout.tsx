@@ -1,4 +1,5 @@
 import { cacheLife } from "next/cache";
+import { BackgroundDecor } from "@/components/store/background-decor";
 import { SiteFooter } from "@/components/store/site-footer";
 import { SiteHeader } from "@/components/store/site-header";
 import { getCatalog, getPublicSettings } from "@/server/catalog";
@@ -19,7 +20,8 @@ export default async function StoreLayout({ children }: LayoutProps<"/">) {
         </p>
       )}
       <SiteHeader categories={catalog.categories} />
-      <main id="main" className="flex-1">
+      <main id="main" className="relative isolate flex-1">
+        <BackgroundDecor />
         {children}
       </main>
       <SiteFooter categories={catalog.categories} contact={settings.contact} year={year} />

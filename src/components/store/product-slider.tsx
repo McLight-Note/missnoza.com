@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Price, ProductImage } from "@/components/store/product-card";
+import { promises } from "@/components/store/promises";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
@@ -12,12 +13,20 @@ export type ProductSlide = {
   name: string;
   slug: string;
   categoryName: string | null;
+  /** Short product description (already trimmed). */
+  description: string;
   imageUrl: string | null;
   imageAlt: string;
   price: number;
   compareAtPrice: number | null;
   hasPriceRange: boolean;
   onSale: boolean;
+  /** Whole-number percentage off, when the product has one clear discount. */
+  discountPercent: number | null;
+  /** Name of the choice, e.g. "Rang" or "Hajm", and the first few choices. */
+  optionLabel: string;
+  options: { name: string; swatch: string | null }[];
+  moreOptions: number;
 };
 
 /** Time between automatic moves, and how long each slide transition takes. */
@@ -120,13 +129,61 @@ export function ProductSlider({ slides }: { slides: ProductSlide[] }) {
             className="grid w-full flex-none snap-start sm:min-h-80 sm:grid-cols-2 lg:min-h-96"
           >
             <div className="flex flex-col items-start justify-center gap-3 p-6 pb-20 sm:order-1 sm:p-10 sm:pb-20 lg:p-14 lg:pb-20">
-              {slide.onSale && <Badge tone="brand">Chegirma</Badge>}
-              {slide.categoryName && <p className="text-xs tracking-wide text-muted uppercase">{slide.categoryName}</p>}
+              <div className="flex flex-wrap items-center gap-2">
+                {slide.onSale && (
+                  <Badge tone="brand">{slide.discountPercent ? `Chegirma −${slide.discountPercent}%` : "Chegirma"}</Badge>
+                )}
+                {slide.categoryName && (
+                  <span className="text-xs tracking-wide text-muted uppercase">{slide.categoryName}</span>
+                )}
+              </div>
               <h3 className="text-2xl leading-tight font-semibold text-balance sm:text-3xl lg:text-4xl">{slide.name}</h3>
+              {slide.description && (
+                <p className="line-clamp-2 max-w-md text-sm leading-relaxed text-muted sm:line-clamp-3 sm:text-base">
+                  {slide.description}
+                </p>
+              )}
+              {slide.options.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+                    {slide.optionLabel || "Variantlar"}
+                  </p>
+                  <ul className="mt-1.5 flex max-w-md flex-wrap gap-1.5">
+                    {slide.options.map((option) => (
+                      <li
+                        key={option.name}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium"
+                      >
+                        {option.swatch && (
+                          <span
+                            aria-hidden="true"
+                            className="size-3 rounded-full border border-black/10"
+                            style={{ backgroundColor: option.swatch }}
+                          />
+                        )}
+                        {option.name}
+                      </li>
+                    ))}
+                    {slide.moreOptions > 0 && (
+                      <li className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium text-muted">
+                        +{slide.moreOptions}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
               <Price price={slide.price} compareAtPrice={slide.compareAtPrice} from={slide.hasPriceRange} size="lg" />
               <ButtonLink href={`/products/${slide.slug}`} className="mt-1">
                 Koʻrish
               </ButtonLink>
+              <ul className="mt-2 hidden flex-col gap-1.5 text-sm text-muted sm:flex">
+                {promises.slice(0, 2).map(({ icon: Icon, title }) => (
+                  <li key={title} className="flex items-center gap-2">
+                    <Icon className="size-4 shrink-0 text-brand-600" aria-hidden="true" />
+                    {title}
+                  </li>
+                ))}
+              </ul>
             </div>
             <div className="relative aspect-[4/3] bg-sand sm:order-2 sm:aspect-auto">
               <ProductImage
