@@ -62,11 +62,16 @@ export function Price({
   );
 }
 
+/** The struck-through "before" price to show next to the price, if any. */
+export function displayCompareAt(product: PublicProduct): number | null {
+  const single = product.variants.length === 1 ? product.variants[0] : null;
+  return product.variants.length === 0 ? product.compareAtPrice : (single?.compareAtPrice ?? null);
+}
+
 export function ProductCard({ product, priority }: { product: PublicProduct; priority?: boolean }) {
   const image = product.images[0];
   // With several options, show the lowest price as "from"; otherwise the price.
-  const single = product.variants.length === 1 ? product.variants[0] : null;
-  const compareAt = product.variants.length === 0 ? product.compareAtPrice : (single?.compareAtPrice ?? null);
+  const compareAt = displayCompareAt(product);
   return (
     <article className="group relative flex flex-col">
       <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-sand">

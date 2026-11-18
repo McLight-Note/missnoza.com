@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Banknote, PackageCheck, PhoneCall, Sparkles } from "lucide-react";
-import { ProductGrid } from "@/components/store/product-card";
+import { ProductGrid, displayCompareAt } from "@/components/store/product-card";
+import { ProductSlider } from "@/components/store/product-slider";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/misc";
 import { siteConfig } from "@/config/site";
@@ -28,6 +29,22 @@ export default async function HomePage() {
   const catalog = await getCatalog();
   // Every product, with featured ones first (then in-stock, then newest).
   const products = filterProducts(catalog, { sort: "featured" });
+  // The sliding banner advertises products marked "featured" that are in stock.
+  const slides = products
+    .filter((p) => p.featured && p.inStock)
+    .slice(0, 6)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      categoryName: p.categoryName,
+      imageUrl: p.images[0]?.url ?? null,
+      imageAlt: p.images[0]?.alt || p.name,
+      price: p.fromPrice,
+      compareAtPrice: displayCompareAt(p),
+      hasPriceRange: p.hasPriceRange,
+      onSale: p.onSale,
+    }));
 
   return (
     <>
@@ -77,6 +94,16 @@ export default async function HomePage() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {slides.length > 0 && (
+        <section
+          aria-roledescription="carousel"
+          aria-label="Tavsiya etilgan mahsulotlar"
+          className="container-page pt-12"
+        >
+          <ProductSlider slides={slides} />
         </section>
       )}
 
